@@ -30,7 +30,7 @@ on:
         type: boolean
         required: false
         # TODO: Swap to true once these are passing consistently
-        default: false
+        default: true
       api_tests_ref:
         description: |
           The branch or PR of the go-konveyor-tests repository to clone.
@@ -84,7 +84,7 @@ on:
         type: boolean
         required: false
         # TODO: Swap to true once these are passing consistently
-        default: false
+        default: true
       api_tests_ref:
         description: |
           The branch or PR of the go-konveyor-tests repository to clone.
@@ -180,14 +180,13 @@ jobs:
         working-directory: go-konveyor-tests
 
   e2e-ui-integration-tests:
+    # TODO once these are passing consistently within about an hour reenable for PRs
     if: ${{ inputs.run_ui_tests }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # TODO: Support cypress-split in main tackle-ui-test project
-        # split: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        tier: [tier1, tier2, tier3]
+        split: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
 
       - name: Extract pull request number from inputs or PR description
@@ -272,7 +271,6 @@ jobs:
       - name: Run UI tests
         uses: cypress-io/github-action@v5
         env:
-          CYPRESS_INCLUDE_TAGS: "@${{ matrix.tier }}"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_tackleUrl: "${{ env.UI_URL }}"
@@ -280,8 +278,8 @@ jobs:
           CYPRESS_git_password: "${{ secrets.GITHUB_TOKEN }}"
           CYPRESS_git_key: "${{ secrets.GITHUB_TOKEN }}"
           # TODO: Support cypress-split in main tackle-ui-test project
-          # CYPRESS_split: "${{ strategy.job-total }}"
-          # CYPRESS_splitIndex: "${{ strategy.job-index }}"
+          CYPRESS_split: "${{ strategy.job-total }}"
+          CYPRESS_splitIndex: "${{ strategy.job-index }}"
         with:
           working-directory: tackle-ui-tests
           spec: "**/*.test.ts"
@@ -290,8 +288,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: always()
         with:
-          # name: tackle-ui-test-reports-${{ matrix.split }}
-          name: tackle-ui-test-reports-${{ matrix.tier }}
+          name: tackle-ui-test-reports-${{ matrix.split }}
           path: |
             tackle-ui-tests/cypress/reports
             tackle-ui-tests/cypress/screenshots
