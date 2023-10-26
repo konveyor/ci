@@ -11,8 +11,15 @@ on:
         required: false
         type: string
         default: latest
+      artifact:
+        description: |
+          The name of the artifact storing custom images to be used during the CI run. All
+          images stored in the artifact will be automatically loaded.
+        type: string
+        required: false
       component_name:
         description: |
+          DEPRECATED: Please use artifact instead
           The name of the component being tested, ie konveyor-hub, analyzer-lsp, etc.
           Must correspond to an artifact storing the custom built image, named <component_name>,
           and should contain the file <component_name>.tar inside.
@@ -65,8 +72,15 @@ on:
         required: false
         type: string
         default: latest
+      artifact:
+        description: |
+          The name of the artifact storing custom images to be used during the CI run. All
+          images stored in the artifact will be automatically loaded.
+        type: string
+        required: false
       component_name:
         description: |
+          DEPRECATED: Please use artifact instead
           The name of the component being tested, ie konveyor-hub, analyzer-lsp, etc.
           Must correspond to an artifact storing the custom built image, named <component_name>,
           and should contain the file <component_name>.tar inside.
@@ -133,15 +147,15 @@ jobs:
 
       # TODO Should DRY this
       - name: set up docker buildx
-        if: "${{ inputs.component_name != '' }}"
+        if: "${{ inputs.component_name != '' || inputs.artifact != '' }}"
         uses: docker/setup-buildx-action@v2
 
       - name: Download artifact
-        if: "${{ inputs.component_name != '' }}"
+        if: "${{ inputs.component_name != '' || inputs.artifact != '' }}"
         uses: actions/download-artifact@v3
         with:
-          name: ${{ inputs.component_name }}
-          path: /tmp
+          name: ${{ inputs.component_name != '' && inputs.component_name || inputs.artifact }}
+          path: /tmp/images/
 
       - name: start minikube
         uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
@@ -150,11 +164,13 @@ jobs:
 
       # TODO: Could just load all images found in this artifact so that people can rebuild multiple components if needed
       - name: Load image
-        if: "${{ inputs.component_name != '' }}"
+        if: "${{ inputs.component_name != '' || inputs.artifact != '' }}"
         run: |
           export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
-          docker load --input /tmp/${{ inputs.component_name }}.tar
+          for image in $(ls /tmp/images/*.tar); do
+            docker load --input /tmp/${{ inputs.component_name }}.tar
+          ; done
 
       - name: install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-tackle@main
