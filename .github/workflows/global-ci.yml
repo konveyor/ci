@@ -185,8 +185,8 @@ jobs:
           make test-tier0 test-tier1
         working-directory: go-konveyor-tests
         env:
-          MAVEN_TESTAPP_USER: "{{ secrets.TACKLE_TESTAPP_MVN_USER }}"
-          MAVEN_TESTAPP_TOKEN: "{{ secrets.TACKLE_TESTAPP_MVN_TOKEN }}"
+          MAVEN_TESTAPP_USER: ${{ secrets.TACKLE_TESTAPP_MVN_USER }}
+          MAVEN_TESTAPP_TOKEN: ${{ secrets.TACKLE_TESTAPP_MVN_TOKEN }}
 
   e2e-ui-integration-tests:
     if: ${{ inputs.run_ui_tests }}
