@@ -168,7 +168,36 @@ env:
   operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:2h
 
 jobs:
+  check-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check operator image exists
+        if: ${{ inputs.operator != '' }}
+        run: docker manifest inspect ${{ inputs.operator }}
+      - name: Check oauth_proxy image exists
+        if: ${{ inputs.oauth_proxy != '' }}
+        run: docker manifest inspect ${{ inputs.oauth_proxy }}
+      - name: Check tackle_hub image exists
+        if: ${{ inputs.tackle_hub != '' }}
+        run: docker manifest inspect ${{ inputs.tackle_hub }}
+      - name: Check tackle_postgres image exists
+        if: ${{ inputs.tackle_postgres != '' }}
+        run: docker manifest inspect ${{ inputs.tackle_postgres }}
+      - name: Check keycloak_sso image exists
+        if: ${{ inputs.keycloak_sso != '' }}
+        run: docker manifest inspect ${{ inputs.keycloak_sso }}
+      - name: Check keycloak_init image exists
+        if: ${{ inputs.keycloak_init != '' }}
+        run: docker manifest inspect ${{ inputs.keycloak_init }}
+      - name: Check tackle_ui image exists
+        if: ${{ inputs.tackle_ui != '' }}
+        run: docker manifest inspect ${{ inputs.tackle_ui }}
+      - name: Check addon_analyzer image exists
+        if: ${{ inputs.addon_analyzer != '' }}
+        run: docker manifest inspect ${{ inputs.addon_analyzer }}
+
   e2e-api-integration-tests:
+    needs: check-images
     runs-on: ubuntu-latest
     if: ${{ inputs.run_api_tests }}
     steps:
@@ -257,6 +286,7 @@ jobs:
         working-directory: go-konveyor-tests
 
   e2e-ui-integration-tests:
+    needs: check-images
     if: ${{ inputs.run_ui_tests }}
     runs-on: ubuntu-latest
     strategy:
