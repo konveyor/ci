@@ -9,8 +9,8 @@ on:
           images stored in the artifact will be automatically loaded.
         type: string
         required: false
-      operator:
-        description: image uri for operator (ie. quay.io/<namespace>/<image-name>:<tag>). Must be pullable.
+      operator_bundle:
+        description: image uri for operator-bundle (ie. quay.io/<namespace>/<image-name>:<tag>). Must be pullable.
         type: string
         required: false
         default: ""
@@ -172,8 +172,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check operator image exists
-        if: ${{ inputs.operator != '' }}
-        run: docker manifest inspect ${{ inputs.operator }}
+        if: ${{ inputs.operator_bundle != '' }}
+        env:
+          PROXY: ${{ inputs.oauth_proxy }}
+          HUB: ${{ inputs.tackle_hub }}
+          POSTGRES: ${{ inputs.tackle_postgres }}
+          SSO: ${{ inputs.keycloak_sso }}
+          INIT: ${{ inputs.keycloak_init }}
+          UI: ${{ inputs.tackle_ui }}
+          ANALYZER: ${{ inputs.addon_analyzer }}
+        run: |
+          docker manifest inspect ${{ inputs.operator_bundle }}
+          # My cheap way to check if any other image is set
+          if [ -n "${PROXY}${HUB}${POSTGRES}${SSO}${INIT}${UI}${ANALYZER}" ]; then
+            echo "::warning:: operator_bundle takes precendent over any other image specified!"
+            echo "::warning:: consider removing the image and setting it on the Tackle CR."
+          fi
       - name: Check oauth_proxy image exists
         if: ${{ inputs.oauth_proxy != '' }}
         run: docker manifest inspect ${{ inputs.oauth_proxy }}
@@ -247,6 +261,7 @@ jobs:
           ; done
 
       - name: Make bundle
+        if: ${{ inputs.operator_bundle == '' }}
         uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
         with:
           operator_bundle: ${{ env.operator_bundle }}
@@ -265,7 +280,7 @@ jobs:
       - name: Install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
         with:
-          bundle_image: ${{ env.operator_bundle }}
+          bundle_image: ${{ inputs.operator_bundle == '' && env.operator_bundle || inputs.operator_bundle }}
           namespace: ${{ inputs.namespace }}
           tackle_cr: ${{ inputs.tackle_cr }}
       # end DRY
@@ -343,6 +358,7 @@ jobs:
           ; done
 
       - name: Make bundle
+        if: ${{ inputs.operator_bundle == '' }}
         uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
         with:
           operator_bundle: ${{ env.operator_bundle }}
@@ -361,7 +377,7 @@ jobs:
       - name: Install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
         with:
-          bundle_image: ${{ env.operator_bundle }}
+          bundle_image: ${{ inputs.operator_bundle == '' && env.operator_bundle || inputs.operator_bundle }}
           namespace: ${{ inputs.namespace }}
           tackle_cr: ${{ inputs.tackle_cr }}
       # end DRY
