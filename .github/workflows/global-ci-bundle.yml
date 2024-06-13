@@ -275,6 +275,7 @@ jobs:
           addon_analyzer: ${{ inputs.addon_analyzer }}
 
       - name: Push bundle
+        if: ${{ inputs.operator_bundle == '' }}
         run: docker push ${operator_bundle}
 
       - name: Install konveyor
@@ -372,6 +373,7 @@ jobs:
           addon_analyzer: ${{ inputs.addon_analyzer }}
 
       - name: Push bundle
+        if: ${{ inputs.operator_bundle == '' }}
         run: docker push ${operator_bundle}
 
       - name: Install konveyor
