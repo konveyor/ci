@@ -105,13 +105,33 @@ on:
         default: main
   workflow_dispatch:
     inputs:
-      operator:
-        description: image uri for operator (ie. quay.io/<namespace>/<image-name>:<tag>). Must be pullable.
+      operator_bundle:
+        description: image uri for operator-bundle (ie. quay.io/<namespace>/<image-name>:<tag>). Must be pullable.
+        type: string
+        required: false
+        default: ""
+      oauth_proxy:
+        description: image uri for oauth_proxy (ie. quay.io/<namespace>/<image-name>:<tag>)
         type: string
         required: false
         default: ""
       tackle_hub:
         description: image uri for tackle-hub (ie. quay.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      tackle_postgres:
+        description: image uri for tackle-postgres (ie. quay.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      keycloak_sso:
+        description: image uri for keycloak_sso image (ie. quay.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      keycloak_init:
+        description: image uri for keycloak_init image (ie. quay.io/<namespace>/<image-name>:<tag>)
         type: string
         required: false
         default: ""
@@ -127,6 +147,12 @@ on:
         default: ""
       addon_discovery:
         description: image uri for discovery addon (ie. quay.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
+      namespace:
+        description: |
+          Namespace for the konveyor install.
         type: string
         required: false
         default: ""
