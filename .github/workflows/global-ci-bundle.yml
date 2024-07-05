@@ -91,6 +91,14 @@ on:
         required: false
         type: string
         default: main
+      api_hub_tests_ref:
+          description: |
+            The branch or PR of the Hub API tests from tackle2-hub repository to clone.
+            For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+            For a branch, the reference format would just be the branch name.
+          required: false
+          type: string
+          default: main
       ui_tests_ref:
         description: |
           The branch or PR of the tackle-ui-tests repository to clone.
@@ -301,6 +309,7 @@ jobs:
           DEBUG: 1
         run: |
           export HUB_BASE_URL="http://$(minikube ip)/hub"
+          export HUB_TESTS_REF="${{ inputs.api_hub_tests_ref }}"
           make test-tier0 test-tier1
         working-directory: go-konveyor-tests
 
