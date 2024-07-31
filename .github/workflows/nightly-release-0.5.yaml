@@ -2,7 +2,7 @@ name: Run Konveyor release-0.5 nightly tests
 
 on:
   schedule:
-    - cron: "35 3 * * *"
+    - cron: "35 4 * * *"
   workflow_dispatch:
 
 jobs:
