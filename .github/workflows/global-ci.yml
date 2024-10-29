@@ -49,6 +49,12 @@ on:
         required: false
         type: string
         default: main
+      api_tests_tiers:
+        description: |
+          The make command to execute from go-konveyor-tests repository
+        required: false
+        type: string
+        default: make test-tier0 test-tier1
       api_hub_tests_ref:
           description: |
             The branch or PR of the Hub API tests from tackle2-hub repository to clone.
@@ -117,6 +123,12 @@ on:
         required: false
         type: string
         default: main
+      api_tests_tiers:
+        description: |
+          The make command to execute from go-konveyor-tests repository
+        required: false
+        type: string
+        default: make test-tier0 test-tier1
       api_hub_tests_ref:
           description: |
             The branch or PR of the Hub API tests from tackle2-hub repository to clone.
@@ -266,7 +278,7 @@ jobs:
         run: |
           export HUB_BASE_URL="http://$(minikube ip)/hub"
           export HUB_TESTS_REF="${{ inputs.api_hub_tests_ref }}"
-          make test-tier0 test-tier1
+          ${{ inputs.api_tests_tiers }}
         working-directory: go-konveyor-tests
 
   e2e-ui-integration-tests:
