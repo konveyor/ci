@@ -455,7 +455,7 @@ jobs:
       - name: Run UI tests
         uses: cypress-io/github-action@v6
         env:
-          CYPRESS_INCLUDE_TAGS: "@${{ input.ui_test_tags }}"
+          CYPRESS_INCLUDE_TAGS: "@${{ inputs.ui_test_tags }}"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_tackleUrl: "${{ env.UI_URL }}"
@@ -471,7 +471,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tackle-ui-test-reports-${{ input.ui_test_tags }}
+          name: tackle-ui-test-reports-${{ inputs.ui_test_tags }}
           path: |
             tackle-ui-tests/cypress/reports
             tackle-ui-tests/cypress/screenshots
