@@ -49,6 +49,12 @@ on:
         required: false
         type: string
         default: main
+      api_tests_tiers:
+        description: |
+          The make command to execute from go-konveyor-tests repository
+        required: false
+        type: string
+        default: make test-tier0 test-tier1
       api_hub_tests_ref:
           description: |
             The branch or PR of the Hub API tests from tackle2-hub repository to clone.
@@ -69,6 +75,14 @@ on:
         required: false
         type: string
         default: main
+      ui_test_tags:
+        description: |
+          A comma separated list of test tags/tiers to select the ui tests to run. Each tag/tier
+          needs to be explicitly included in the list. For example, to use tiers 0, 1, and 2,
+          the value should be: "@tier0,@tier1,@tier2".
+        required: false
+        type: string
+        default: "@tier0"
   workflow_dispatch:
     inputs:
       tag:
@@ -117,6 +131,12 @@ on:
         required: false
         type: string
         default: main
+      api_tests_tiers:
+        description: |
+          The make command to execute from go-konveyor-tests repository
+        required: false
+        type: string
+        default: make test-tier0 test-tier1
       api_hub_tests_ref:
           description: |
             The branch or PR of the Hub API tests from tackle2-hub repository to clone.
@@ -137,6 +157,14 @@ on:
         required: false
         type: string
         default: main
+      ui_test_tags:
+        description: |
+          A comma separated list of test tags/tiers to select the ui tests to run. Each tag/tier
+          needs to be explicitly included in the list. For example, to use tiers 0, 1, and 2,
+          the value should be: "@tier0,@tier1,@tier2".
+        required: false
+        type: string
+        default: "@tier0"
 
 jobs:
   e2e-api-integration-tests:
@@ -169,24 +197,44 @@ jobs:
 
       - name: Download artifact
         if: "${{ inputs.component_name != '' }}"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.component_name }}
           path: /tmp
 
       - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.5
+        if: "${{ startsWith(inputs.operator_tag, 'v0.5') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.4
+        if: "${{ startsWith(inputs.operator_tag, 'v0.4') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.6
+        if: "${{ startsWith(inputs.operator_tag, 'v0.6') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
         uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+        if: "${{ startsWith(inputs.operator_tag, 'latest') }}"
         with:
           memory: 'max'
           cpus: 'max'
 
-      # TODO: Could just load all images found in this artifact so that people can rebuild multiple components if needed
       - name: Load image
         if: "${{ inputs.component_name != '' }}"
         run: |
           export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
-          docker load --input /tmp/${{ inputs.component_name }}.tar
+          for image in $(ls /tmp/images/*.tar); do
+            docker load --input ${image}
+          ; done
 
       - name: install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.4
@@ -200,8 +248,19 @@ jobs:
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
       - name: install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.3
-        if: "${{ startsWith(inputs.operator_tag, 'v0.3') }}"
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.5
+        if: "${{ startsWith(inputs.operator_tag, 'v0.5') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.6
+        if: "${{ startsWith(inputs.operator_tag, 'v0.6') }}"
         with:
           operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
           hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
@@ -236,17 +295,19 @@ jobs:
         run: |
           export HUB_BASE_URL="http://$(minikube ip)/hub"
           export HUB_TESTS_REF="${{ inputs.api_hub_tests_ref }}"
-          make test-tier0 test-tier1
+          ${{ inputs.api_tests_tiers }}
         working-directory: go-konveyor-tests
 
   e2e-ui-integration-tests:
     if: ${{ inputs.run_ui_tests }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # TODO enable customizing the number of tiers run for nightlies
-        tier: [tier0] #, tier1, tier2, tier3]
+
+    # Note: We can split the input string by comma if we want to run the tags in parallel
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     test-tags:
+    #       - ${{ inputs.ui_test_tags }}
 
     steps:
       - name: Extract pull request number from inputs or PR description
@@ -275,7 +336,7 @@ jobs:
 
       - name: Download artifact
         if: "${{ inputs.component_name != '' }}"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.component_name }}
           path: /tmp
@@ -286,13 +347,14 @@ jobs:
           memory: 'max'
           cpus: 'max'
 
-      # TODO: Could just load all images found in this artifact so that people can rebuild multiple components if needed
       - name: Load image
         if: "${{ inputs.component_name != '' }}"
         run: |
           export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
-          docker load --input /tmp/${{ inputs.component_name }}.tar
+          for image in $(ls /tmp/images/*.tar); do
+            docker load --input ${image}
+          ; done
 
       - name: install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.4
@@ -306,8 +368,19 @@ jobs:
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
       - name: install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.3
-        if: "${{ startsWith(inputs.operator_tag, 'v0.3') }}"
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.5
+        if: "${{ startsWith(inputs.operator_tag, 'v0.5') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.6
+        if: "${{ startsWith(inputs.operator_tag, 'v0.6') }}"
         with:
           operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
           hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
@@ -344,20 +417,20 @@ jobs:
           echo $external_ip;
           echo "UI_URL=https://$(minikube ip)" >>$GITHUB_ENV
 
-      # - name: Run login tests
-      #   uses: cypress-io/github-action@v5
-      #   env:
-      #     CYPRESS_user: admin
-      #     CYPRESS_pass: password
-      #     CYPRESS_tackleUrl: "${{ env.UI_URL }}"
-      #   with:
-      #     working-directory: tackle-ui-tests
-      #     spec: "cypress/e2e/tests/login.test.ts"
-
-      - name: Run UI tests
-        uses: cypress-io/github-action@v5
+      - name: Run login tests
+        uses: cypress-io/github-action@v6
         env:
-          CYPRESS_INCLUDE_TAGS: "@${{ matrix.tier }}"
+          CYPRESS_user: admin
+          CYPRESS_pass: password
+          CYPRESS_tackleUrl: "${{ env.UI_URL }}"
+        with:
+          working-directory: tackle-ui-tests
+          spec: "cypress/e2e/tests/login.test.ts"
+
+      - name: Run UI tests (${{ inputs.ui_test_tags }})
+        uses: cypress-io/github-action@v6
+        env:
+          CYPRESS_INCLUDE_TAGS: "${{ inputs.ui_test_tags }}"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_tackleUrl: "${{ env.UI_URL }}"
@@ -366,13 +439,15 @@ jobs:
           CYPRESS_git_key: "${{ secrets.GITHUB_TOKEN }}"
         with:
           working-directory: tackle-ui-tests
+          # spec can be removed once https://github.com/konveyor/tackle-ui-tests/pull/1331 merges
           spec: "**/*.test.ts"
 
-      - name: Upload cypress report  data as artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload cypress report data as artifact
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tackle-ui-test-reports-${{ matrix.tier }}
+          name: tackle-ui-test-reports-${{ inputs.test-tags }}
           path: |
             tackle-ui-tests/cypress/reports
             tackle-ui-tests/cypress/screenshots
+            tackle-ui-tests/cypress/videos

@@ -1,24 +1,24 @@
-name: Run Konveyor release-0.4 nightly tests
+name: Run Konveyor release-0.5 nightly tests
 
 on:
   schedule:
-    - cron: "24 4 * * *"
+    - cron: "35 4 * * *"
   workflow_dispatch:
 
 jobs:
-  release-0_4-nightly:
+  release-0_5-nightly:
     uses: ./.github/workflows/global-ci.yml
     with:
-      tag: release-0.4
-      operator_tag: v0.4.0
-      api_tests_ref: release-0.4
+      tag: release-0.5
+      operator_tag: v0.5.1
+      api_tests_ref: release-0.5
       run_api_tests: true
-      # TODO: this needs to be pinned to a release-0.4 specific branch
+      # TODO: this needs to be pinned to a release-0.5 specific branch
       ui_tests_ref: main
       # Disabled while we wait for stability
       run_ui_tests: false
   report_failure:
-    needs: release-0_4-nightly
+    needs: release-0_5-nightly
     if: ${{ always() && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
@@ -29,7 +29,7 @@ jobs:
           payload: |
             {
               "test": "E2E API",
-              "branch": "release-0.4",
+              "branch": "release-0.5",
               "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:

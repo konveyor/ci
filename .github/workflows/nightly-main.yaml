@@ -9,6 +9,7 @@ jobs:
   main-nightly:
     uses: ./.github/workflows/global-ci-bundle.yml
     with:
+      operator_bundle: quay.io/konveyor/tackle2-operator-bundle:latest
       api_tests_ref: main
       run_api_tests: true
       ui_tests_ref: main

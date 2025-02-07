@@ -6,8 +6,8 @@ Component | CI (after merge) | Nightly (cron)
 --|--|--
 **Hub** | [![Hub main](https://github.com/konveyor/tackle2-hub/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle2-hub/actions/workflows/main.yml) | [![Hub Test Suite](https://github.com/konveyor/tackle2-hub/actions/workflows/test-nightly.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle2-hub/actions/workflows/test-nightly.yml)
 **UI** | [![CI (repo level)](https://github.com/konveyor/tackle2-ui/actions/workflows/ci-repo.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle2-ui/actions/workflows/ci-repo.yml) | [![Nightly CI (repo level @main)](https://github.com/konveyor/tackle2-ui/actions/workflows/nightly-ci-repo.yaml/badge.svg?event=schedule)](https://github.com/konveyor/tackle2-ui/actions/workflows/nightly-ci-repo.yaml)
-**E2E API** | [![Test TIER0](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier0.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier0.yml) [![Test TIER1](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier1.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier1.yml) [![Test TIER2](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier2.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier2.yml) | [![Test nightly TIER0](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier0.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier0.yml) [![Test nightly TIER1](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier1.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier1.yml) [![Test nightly TIER2](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier2.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier2.yml) [![Test nightly TIER3](https://img.shields.io/endpoint?url=https%3A%2F%2Fsajidmansoori12.pythonanywhere.com%2Fretrieve_data%3Fpipeline%3Dtier3-nightly&cacheSeconds=60)](https://main-jenkins-csb-migrationqe.apps.ocp-c1.prod.psi.redhat.com/view/MTA/job/mta/job/konveyor-tier3-nightly/)
-**E2E UI** | [![UI E2E test](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-ci.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-ci.yml) | [![UI E2E test](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-cron.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-cron.yml)
+**E2E API** | [![Test TIER0](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier0.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier0.yml) [![Test TIER1](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier1.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier1.yml) [![Test TIER2](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier2.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/main-tier2.yml) | [![Test nightly TIER0](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier0.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier0.yml) [![Test nightly TIER1](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier1.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier1.yml) [![Test nightly TIER2](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier2.yml/badge.svg)](https://github.com/konveyor/go-konveyor-tests/actions/workflows/nightly-tier2.yml) [![Test nightly TIER3](https://img.shields.io/endpoint?url=https%3A%2F%2Fsajidmansoori12.pythonanywhere.com%2Fretrieve_data%3Fpipeline%3Dtier3-nightly&cacheSeconds=60)](https://jenkins-csb-migrationqe-main.dno.corp.redhat.com/view/MTA/job/mta/job/konveyor-tier3-nightly/)
+**E2E UI** | [![UI E2E test](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-ci.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-ci.yml) | [![UI E2E test](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-cron.yml/badge.svg?branch=main)](https://github.com/konveyor/tackle-ui-tests/actions/workflows/k8s-cron.yml) [![Test UI nightly TIER1](https://img.shields.io/endpoint?url=https%3A%2F%2Fsajidmansoori12.pythonanywhere.com%2Fretrieve_data%3Fpipeline%3Dui-tier1-nightly&cacheSeconds=60)](https://jenkins-csb-migrationqe-main.dno.corp.redhat.com/view/Konveyor/job/mta/job/konveyor-ui-tier1-nightly/)
 
 
 ### Release nightlies
@@ -15,9 +15,9 @@ Component | CI (after merge) | Nightly (cron)
 Branch | Status
 --|--
 **main** | [![Run Konveyor main nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-main.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-main.yaml)
+**release-0.6** | [![Run Konveyor release-0.6 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.6.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.6.yaml)
+**release-0.5** | [![Run Konveyor release-0.5 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.5.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.5.yaml)
 **release-0.4** | [![Run Konveyor release-0.4 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.4.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.4.yaml)
-**release-0.3** | [![Run Konveyor release-0.3 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.3.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.3.yaml)
-**release-0.2** | [![Run Konveyor release-0.2 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.2.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.2.yaml)
 
 
 
@@ -51,9 +51,9 @@ jobs:
           podman save -o /tmp/analyzer-lsp.tar quay.io/konveyor/analyzer-lsp:latest
 
       - name: Upload image as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: analyzer-lsp
+          name: analyzer-lsp    # If uploading multiple artifacts in the workflow, make sure there is a unique name for each
           path: /tmp/analyzer-lsp.tar
           # This prevents too many artifacts from accumulating in your repository
           retention-days: 1
