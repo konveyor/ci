@@ -455,7 +455,7 @@ jobs:
       - name: Run UI tests
         uses: cypress-io/github-action@v6
         env:
-          CYPRESS_INCLUDE_TAGS: "@${{ inputs.ui_test_tags }}"
+          CYPRESS_INCLUDE_TAGS: "${{ inputs.ui_test_tags }}"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_tackleUrl: "${{ env.UI_URL }}"
