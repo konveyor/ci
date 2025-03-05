@@ -251,6 +251,10 @@ jobs:
     needs: check-images
     runs-on: ubuntu-latest
     if: ${{ inputs.run_api_tests }}
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Extract pull request number from inputs or PR description
         env:
@@ -276,26 +280,30 @@ jobs:
         if: ${{ inputs.artifact != '' }}
         uses: docker/setup-buildx-action@v2
 
-      - name: Download artifact
-        if: ${{ inputs.artifact != '' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact }}
-          path: /tmp/images
-
       - name: Start minikube
         uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
         with:
           memory: 'max'
           cpus: 'max'
 
+      - name: Download artifact
+        if: ${{ inputs.artifact != '' }}
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: /tmp/container_images
+
       - name: Load images
         if: ${{ inputs.artifact != '' }}
-        # TODO: Have this use find so directory structure isn't a factor (like in ovirt scripts)
+        env:
+          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
         run: |
-          export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
-          for image in $(ls /tmp/images/*.tar); do
+          for image in $(
+            find "${IMAGES_PATH}" -type f -name "*.tar"
+          ); do
+            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
             docker load --input ${image}
           done
 
@@ -347,6 +355,9 @@ jobs:
     needs: check-images
     if: ${{ inputs.run_ui_tests }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     # Note: We can split the input string by comma if we want to run the tags in parallel
     # strategy:
@@ -380,25 +391,30 @@ jobs:
         if: ${{ inputs.artifact != '' }}
         uses: docker/setup-buildx-action@v2
 
-      - name: Download artifact
-        if: ${{ inputs.artifact != '' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact }}
-          path: /tmp/images
-
       - name: Start minikube
         uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
         with:
           memory: 'max'
           cpus: 'max'
 
+      - name: Download artifact
+        if: ${{ inputs.artifact != '' }}
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: /tmp/container_images
+
       - name: Load images
         if: ${{ inputs.artifact != '' }}
+        env:
+          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
         run: |
-          export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
-          for image in $(ls /tmp/images/*.tar); do
+          for image in $(
+            find "${IMAGES_PATH}" -type f -name "*.tar"
+          ); do
+            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
             docker load --input ${image}
           done
 
