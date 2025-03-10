@@ -443,21 +443,24 @@ jobs:
         with:
           working-directory: tackle-ui-tests
           spec: "cypress/e2e/tests/login.test.ts"
-
+      
       - name: Run UI tests (${{ inputs.ui_test_tags }})
         uses: cypress-io/github-action@v6
         env:
-          CYPRESS_INCLUDE_TAGS: "${{ inputs.ui_test_tags }}"
+          CYPRESS_INCLUDE_TAGS: "@ci,@tier0,@tier1"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_tackleUrl: "${{ env.UI_URL }}"
           CYPRESS_git_user: "fakeuser"
           CYPRESS_git_password: "${{ secrets.GITHUB_TOKEN }}"
           CYPRESS_git_key: "${{ secrets.GITHUB_TOKEN }}"
+          NO_COMMAND_LOG: 1
         with:
           working-directory: tackle-ui-tests
           # spec can be removed once https://github.com/konveyor/tackle-ui-tests/pull/1331 merges
           spec: "**/*.test.ts"
+          browser: chrome
+          config: baseUrl=${{env.UI_URL}},numTestsKeptInMemory=0,testIsolation=false
 
       - name: Upload cypress report data as artifact
         uses: actions/upload-artifact@v4
