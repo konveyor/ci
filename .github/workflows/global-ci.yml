@@ -165,7 +165,8 @@ on:
         required: false
         type: string
         default: "@ci"
-
+permissions:
+  packages: read
 jobs:
   e2e-api-integration-tests:
     if: ${{ inputs.run_api_tests }}
@@ -407,7 +408,7 @@ jobs:
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
       - name: install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-tackle@main
+        uses: shawn-hurley/operator/.github/actions/install-tackle@feature/add-auth
         if: "${{ inputs.operator_tag == 'latest'}}"
         with:
           operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
@@ -417,6 +418,7 @@ jobs:
           image-pull-policy: IfNotPresent
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
+          enable_auth: "true"
       # end DRY
 
       - name: Wait for Ingress and expose UI service
@@ -443,21 +445,25 @@ jobs:
         with:
           working-directory: tackle-ui-tests
           spec: "cypress/e2e/tests/login.test.ts"
-
+          config: baseUrl=${{env.UI_URL}},numTestsKeptInMemory=0,testIsolation=true
+      
       - name: Run UI tests (${{ inputs.ui_test_tags }})
         uses: cypress-io/github-action@v6
         env:
-          CYPRESS_INCLUDE_TAGS: "${{ inputs.ui_test_tags }}"
+          CYPRESS_INCLUDE_TAGS: "@ci,@tier0,@tier1"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_baseUrl: "${{ env.UI_URL }}"
           CYPRESS_git_user: "fakeuser"
           CYPRESS_git_password: "${{ secrets.GITHUB_TOKEN }}"
           CYPRESS_git_key: "${{ secrets.GITHUB_TOKEN }}"
+          NO_COMMAND_LOG: 1
         with:
           working-directory: tackle-ui-tests
           # spec can be removed once https://github.com/konveyor/tackle-ui-tests/pull/1331 merges
           spec: "**/*.test.ts"
+          browser: chrome
+          config: baseUrl=${{env.UI_URL}},numTestsKeptInMemory=0,testIsolation=true
 
       - name: Upload cypress report data as artifact
         uses: actions/upload-artifact@v4
