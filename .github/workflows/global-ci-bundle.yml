@@ -474,7 +474,8 @@ jobs:
         uses: cypress-io/github-action@v6
         env:
           CYPRESS_user: admin
-          CYPRESS_pass: password
+          CYPRESS_initialPassword: Passw0rd!
+          CYPRESS_password: Dog8code
           CYPRESS_baseUrl: "${{ env.UI_URL }}"
         with:
           working-directory: tackle-ui-tests
