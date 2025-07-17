@@ -14,6 +14,11 @@ on:
         type: string
         required: false
         default: ""
+      base_tag:
+        description: tag for operator image (ie. release-0.7) to build custom bundle on top of it. Is added to operator base image URL.
+        type: string
+        required: false
+        default: "latest"
       oauth_proxy:
         description: image uri for oauth_proxy (ie. quay.io/<namespace>/<image-name>:<tag>)
         type: string
@@ -133,6 +138,11 @@ on:
         type: string
         required: false
         default: "quay.io/konveyor/tackle2-operator-bundle:latest"
+      base_tag:
+        description: tag for operator image (ie. release-0.7) to build custom bundle on top of it. Is added to operator base image URL.
+        type: string
+        required: false
+        default: "latest"
       namespace:
         description: |
           Namespace for the konveyor install.
@@ -198,7 +208,7 @@ on:
         default: "@ci"
 
 env:
-  operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:2h
+  operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:4h
 
 jobs:
   check-images:
@@ -312,6 +322,7 @@ jobs:
         uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
         with:
           operator_bundle: ${{ env.operator_bundle }}
+          operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
@@ -434,6 +445,7 @@ jobs:
         uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
         with:
           operator_bundle: ${{ env.operator_bundle }}
+          operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
