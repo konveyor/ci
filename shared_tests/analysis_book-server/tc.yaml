@@ -1,0 +1,9 @@
+---
+description: book-store basic analysis
+input: https://github.com/ibraginsky/book-server
+sources:
+- java-ee
+- springboot
+targets:
+- linux
+- quarkus
