@@ -292,7 +292,10 @@ jobs:
         working-directory: go-konveyor-tests
       - name: Prepare summary
         if: always()
-        run: cat /tmp/tests.log | grep -- --- >> $GITHUB_STEP_SUMMARY
+        run: |
+          if [[ -f /tmp/tests.log ]]; then
+            grep -- '---' /tmp/tests.log >> "$GITHUB_STEP_SUMMARY"
+          fi || true
       - name: Upload analysis tests output
         if: always()
         uses: actions/upload-artifact@v4
