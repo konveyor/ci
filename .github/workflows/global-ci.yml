@@ -37,6 +37,12 @@ on:
         type: boolean
         required: false
         default: true
+      run_cli_tests:
+        description: |
+          A flag that determines whether the CLI tests should be run or not
+        type: boolean
+        required: false
+        default: false
       api_tests_ref:
         description: |
           The branch or PR of the go-konveyor-tests repository to clone.
@@ -119,6 +125,12 @@ on:
         type: boolean
         required: true
         default: true
+      run_cli_tests:
+        description: |
+          A flag that determines whether the CLI tests should be run or not
+        type: boolean
+        required: false
+        default: false
       api_tests_ref:
         description: |
           The branch or PR of the go-konveyor-tests repository to clone.
@@ -453,3 +465,9 @@ jobs:
             tackle-ui-tests/cypress/reports
             tackle-ui-tests/cypress/screenshots
             tackle-ui-tests/cypress/videos
+
+  e2e-cli-tests:
+    uses: konveyor-ecosystem/kantra-cli-tests/.github/workflows/test-suite.yaml@main
+    with:
+      tag: ${{ inputs.tag }}
+      tier: TIER0
