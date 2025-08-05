@@ -1,0 +1,37 @@
+---
+description: book-store basic source + deps analysis
+application:
+  name: book-server
+  repository:
+    url: https://github.com/ibraginsky/book-server
+    kind: git
+input: https://github.com/ibraginsky/book-server
+filename: book-server
+sources:
+- java-ee
+- springboot
+targets:
+- cloud-readiness
+- linux
+- quarkus
+withDeps: true
+referencesDir: source_deps_reference
+
+---
+description: book-store basic source only analysis
+application:
+  name: book-server
+  repository:
+    url: https://github.com/ibraginsky/book-server
+    kind: git
+input: https://github.com/ibraginsky/book-server
+filename: book-server
+sources:
+- java-ee
+- springboot
+targets:
+- cloud-readiness
+- linux
+- quarkus
+withDeps: false
+referencesDir: source_only_reference

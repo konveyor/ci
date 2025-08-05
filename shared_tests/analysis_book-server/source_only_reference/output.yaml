@@ -1,0 +1,376 @@
+- description: This ruleset detects logging configurations that may be problematic
+    when migrating an application to a cloud environment.
+  name: cloud-readiness
+  violations:
+    local-storage-00001:
+      category: mandatory
+      description: File system - Java IO
+      effort: 1
+      incidents:
+      - codeSnip: 14          File file = new File(fileName);
+        lineNumber: 14
+        message: "An application running inside a container could lose access to a\
+          \ file in local storage.\n\n Recommendations\n\n The following recommendations\
+          \ depend on the function of the file in local storage:\n\n * Logging: Log\
+          \ to standard output and use a centralized log collector to analyze the\
+          \ logs.\n * Caching: Use a cache backing service.\n * Configuration: Store\
+          \ configuration settings in environment variables so that they can be updated\
+          \ without code changes.\n * Data storage: Use a database backing service\
+          \ for relational data or use a persistent data storage system.\n * Temporary\
+          \ data storage: Use the file system of a running container as a brief, single-transaction\
+          \ cache."
+        uri: src/main/java/com/telran/application/model/BookModel.java
+      - codeSnip: 17          PrintWriter pw = new PrintWriter(new FileWriter(file));
+        lineNumber: 17
+        message: "An application running inside a container could lose access to a\
+          \ file in local storage.\n\n Recommendations\n\n The following recommendations\
+          \ depend on the function of the file in local storage:\n\n * Logging: Log\
+          \ to standard output and use a centralized log collector to analyze the\
+          \ logs.\n * Caching: Use a cache backing service.\n * Configuration: Store\
+          \ configuration settings in environment variables so that they can be updated\
+          \ without code changes.\n * Data storage: Use a database backing service\
+          \ for relational data or use a persistent data storage system.\n * Temporary\
+          \ data storage: Use the file system of a running container as a brief, single-transaction\
+          \ cache."
+        uri: src/main/java/com/telran/application/model/BookModel.java
+      - codeSnip: 23              pw.println(mapper.writeValueAsString(Book.getRandomBook()));
+        lineNumber: 23
+        message: "An application running inside a container could lose access to a\
+          \ file in local storage.\n\n Recommendations\n\n The following recommendations\
+          \ depend on the function of the file in local storage:\n\n * Logging: Log\
+          \ to standard output and use a centralized log collector to analyze the\
+          \ logs.\n * Caching: Use a cache backing service.\n * Configuration: Store\
+          \ configuration settings in environment variables so that they can be updated\
+          \ without code changes.\n * Data storage: Use a database backing service\
+          \ for relational data or use a persistent data storage system.\n * Temporary\
+          \ data storage: Use the file system of a running container as a brief, single-transaction\
+          \ cache."
+        uri: src/main/java/com/telran/application/model/BookModel.java
+      - codeSnip: 29          File file = new File(filename);
+        lineNumber: 29
+        message: "An application running inside a container could lose access to a\
+          \ file in local storage.\n\n Recommendations\n\n The following recommendations\
+          \ depend on the function of the file in local storage:\n\n * Logging: Log\
+          \ to standard output and use a centralized log collector to analyze the\
+          \ logs.\n * Caching: Use a cache backing service.\n * Configuration: Store\
+          \ configuration settings in environment variables so that they can be updated\
+          \ without code changes.\n * Data storage: Use a database backing service\
+          \ for relational data or use a persistent data storage system.\n * Temporary\
+          \ data storage: Use the file system of a running container as a brief, single-transaction\
+          \ cache."
+        uri: src/main/java/com/telran/application/model/BookModel.java
+      - codeSnip: 32          BufferedReader br = new BufferedReader(new FileReader(file));
+        lineNumber: 32
+        message: "An application running inside a container could lose access to a\
+          \ file in local storage.\n\n Recommendations\n\n The following recommendations\
+          \ depend on the function of the file in local storage:\n\n * Logging: Log\
+          \ to standard output and use a centralized log collector to analyze the\
+          \ logs.\n * Caching: Use a cache backing service.\n * Configuration: Store\
+          \ configuration settings in environment variables so that they can be updated\
+          \ without code changes.\n * Data storage: Use a database backing service\
+          \ for relational data or use a persistent data storage system.\n * Temporary\
+          \ data storage: Use the file system of a running container as a brief, single-transaction\
+          \ cache."
+        uri: src/main/java/com/telran/application/model/BookModel.java
+      - codeSnip: 40              library.put(book.getISBN(), book);
+        lineNumber: 40
+        message: "An application running inside a container could lose access to a\
+          \ file in local storage.\n\n Recommendations\n\n The following recommendations\
+          \ depend on the function of the file in local storage:\n\n * Logging: Log\
+          \ to standard output and use a centralized log collector to analyze the\
+          \ logs.\n * Caching: Use a cache backing service.\n * Configuration: Store\
+          \ configuration settings in environment variables so that they can be updated\
+          \ without code changes.\n * Data storage: Use a database backing service\
+          \ for relational data or use a persistent data storage system.\n * Temporary\
+          \ data storage: Use the file system of a running container as a brief, single-transaction\
+          \ cache."
+        uri: src/main/java/com/telran/application/model/BookModel.java
+      labels:
+      - konveyor.io/source
+      - konveyor.io/target=cloud-readiness
+      - storage
+      links:
+      - title: 'OpenShift Container Platform: Input secrets and ConfigMaps'
+        url: https://docs.openshift.com/container-platform/4.5/builds/creating-build-inputs.html#builds-input-secrets-configmaps_creating-build-inputs
+      - title: 'OpenShift Container Platform: Understanding cluster logging'
+        url: https://docs.openshift.com/container-platform/4.5/logging/cluster-logging.html
+      - title: 'OpenShift Container Platform: Understanding persistent storage'
+        url: https://docs.openshift.com/container-platform/4.5/storage/understanding-persistent-storage.html
+      - title: 'Twelve-Factor App: Backing services'
+        url: https://12factor.net/backing-services
+      - title: 'Twelve-Factor App: Config'
+        url: https://12factor.net/config
+      - title: 'Twelve-Factor App: Logs'
+        url: https://12factor.net/logs
+- name: discovery-rules
+  tags:
+  - EJB XML
+  - Java Source
+  - Maven XML
+- description: This ruleset gives hints to migrate from SpringBoot devtools to Quarkus
+  name: quarkus/springboot
+  violations:
+    javaee-pom-to-quarkus-00010:
+      category: mandatory
+      description: Adopt Quarkus BOM
+      effort: 1
+      incidents:
+      - codeSnip: 5      <modelVersion>4.0.0</modelVersion>
+        lineNumber: 5
+        message: "Use the Quarkus BOM to omit the version of the different Quarkus\
+          \ dependencies. \n Add the following sections to the `pom.xml` file: \n\n\
+          \ ```xml\n <properties> \n <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>\
+          \ \n <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>\
+          \ \n <quarkus.platform.version>3.1.0.Final</quarkus.platform.version>\n\
+          \ </properties> \n <dependencyManagement> \n <dependencies> \n <dependency>\
+          \ \n <groupId>$</groupId> \n <artifactId>$</artifactId> \n <version>$</version>\
+          \ \n <type>pom</type> \n <scope>import</scope> \n </dependency> \n </dependencies>\
+          \ \n </dependencyManagement> \n ```\n Check the latest Quarkus version available\
+          \ from the `Quarkus - Releases` link below."
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=java-ee
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus - Guide;
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
+      - title: Quarkus - Releases
+        url: https://quarkus.io/blog/tag/release/
+    javaee-pom-to-quarkus-00020:
+      category: mandatory
+      description: Adopt Quarkus Maven plugin
+      effort: 1
+      incidents:
+      - codeSnip: 5      <modelVersion>4.0.0</modelVersion>
+        lineNumber: 5
+        message: "Use the Quarkus Maven plugin adding the following sections to the\
+          \ `pom.xml` file: \n\n ```xml\n <properties> \n <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>\
+          \ \n <quarkus.platform.version>3.1.0.Final</quarkus.platform.version>\n\
+          \ </properties> \n <build>\n <plugins>\n <plugin>\n <groupId>$</groupId>\n\
+          \ <artifactId>quarkus-maven-plugin</artifactId>\n <version>$</version>\n\
+          \ <extensions>true</extensions>\n <executions>\n <execution>\n <goals>\n\
+          \ <goal>build</goal>\n <goal>generate-code</goal>\n <goal>generate-code-tests</goal>\n\
+          \ </goals>\n </execution>\n </executions>\n </plugin>\n </plugins>\n </build>\n\
+          \ ```"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=java-ee
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus - Guide;
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
+    javaee-pom-to-quarkus-00030:
+      category: mandatory
+      description: Adopt Maven Compiler plugin
+      effort: 1
+      incidents:
+      - codeSnip: 5      <modelVersion>4.0.0</modelVersion>
+        lineNumber: 5
+        message: "Use the Maven Compiler plugin adding the following sections to the\
+          \ `pom.xml` file: \n\n ```xml\n <properties> \n <compiler-plugin.version>3.10.1</compiler-plugin.version>\n\
+          \ <maven.compiler.release>11</maven.compiler.release>\n </properties> \n\
+          \ <build>\n <plugins>\n <plugin>\n <artifactId>maven-compiler-plugin</artifactId>\n\
+          \ <version>$</version>\n <configuration>\n <compilerArgs>\n <arg>-parameters</arg>\n\
+          \ </compilerArgs>\n </configuration>\n </plugin>\n </plugins>\n </build>\n\
+          \ ```"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=java-ee
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus - Guide;
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
+    javaee-pom-to-quarkus-00040:
+      category: mandatory
+      description: Adopt Maven Surefire plugin
+      effort: 1
+      incidents:
+      - codeSnip: 5      <modelVersion>4.0.0</modelVersion>
+        lineNumber: 5
+        message: "Use the Maven Surefire plugin adding the following sections to the\
+          \ `pom.xml` file: \n\n ```xml\n <properties> \n <surefire-plugin.version>3.0.0</compiler-plugin.version>\n\
+          \ </properties> \n <build>\n <plugins>\n <plugin>\n <artifactId>maven-surefire-plugin</artifactId>\n\
+          \ <version>$</version>\n <configuration>\n <systemPropertyVariables>\n <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>\n\
+          \ <maven.home>$</maven.home>\n </systemPropertyVariables>\n </configuration>\n\
+          \ </plugin>\n </plugins>\n </build>\n ```"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=java-ee
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus - Guide;
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
+    javaee-pom-to-quarkus-00050:
+      category: mandatory
+      description: Adopt Maven Failsafe plugin
+      effort: 1
+      incidents:
+      - codeSnip: 5      <modelVersion>4.0.0</modelVersion>
+        lineNumber: 5
+        message: "Use the Maven Failsafe plugin adding the following sections to the\
+          \ `pom.xml` file: \n\n ```xml\n <properties> \n <surefire-plugin.version>3.0.0</compiler-plugin.version>\n\
+          \ </properties> \n <build>\n <plugins>\n <plugin>\n <artifactId>maven-failsafe-plugin</artifactId>\n\
+          \ <version>$</version>\n <executions>\n <execution>\n <goals>\n <goals>integration-test</goal>\n\
+          \ <goals>verify</goal>\n </goals>\n <configuration>\n <systemPropertyVariables>\n\
+          \ <native.image.path>$/$-runner</native.image.path>\n <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>\n\
+          \ <maven.home>$</maven.home>\n </systemPropertyVariables>\n </configuration>\n\
+          \ </execution>\n </executions>\n </plugin>\n </plugins>\n </build>\n ```"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=java-ee
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus - Guide;
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
+    javaee-pom-to-quarkus-00060:
+      category: mandatory
+      description: Add Maven profile to run the Quarkus native build
+      effort: 1
+      incidents:
+      - codeSnip: 5      <modelVersion>4.0.0</modelVersion>
+        lineNumber: 5
+        message: "Leverage a Maven profile to run the Quarkus native build adding\
+          \ the following section to the `pom.xml` file: \n\n ```xml\n <profiles>\n\
+          \ <profile>\n <id>native</id>\n <activation>\n <property>\n <name>native</name>\n\
+          \ </property>\n </activation>\n <properties>\n <skipITs>false</skipITs>\n\
+          \ <quarkus.package.type>native</quarkus.package.type>\n </properties>\n\
+          \ </profile>\n </profiles>\n ```"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=java-ee
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus - Guide;
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
+    springboot-annotations-to-quarkus-00000:
+      category: mandatory
+      description: Remove the SpringBoot @SpringBootApplication annotation
+      effort: 1
+      incidents:
+      - codeSnip: 6  @SpringBootApplication
+        lineNumber: 6
+        message: "Remove the SpringBoot @SpringBootApplication annotation.\n\n A Spring\
+          \ Boot application contains a \"main\" class with the @SpringBootApplication\
+          \ annotation. A Quarkus application does not have such a class. Two different\
+          \ alternatives can be followed - either\n to remove the \"main\" class associated\
+          \ with the annotation, or add the `org.springframework.boot:spring-boot-autoconfigure`\
+          \ dependency as an `optional` Maven dependency. An optional dependency \n\
+          \ is available when an application compiles but is not packaged with the\
+          \ application at runtime. Doing this would allow the application to compile\
+          \ without modification, but you\n would also need to maintain a Spring version\
+          \ along with the Quarkus application."
+        uri: src/main/java/com/telran/application/BookServerApp.java
+      labels:
+      - konveyor.io/source=springboot
+      - konveyor.io/target=quarkus
+    springboot-di-to-quarkus-00000:
+      category: potential
+      description: Replace the SpringBoot Dependency Injection artifact with Quarkus
+        'spring-di' extension
+      effort: 1
+      incidents:
+      - codeSnip: 24              <groupId>org.springframework.boot</groupId>
+        lineNumber: 24
+        message: "Replace the SpringBoot Dependency Injection artifact with Quarkus\
+          \ `spring-di` extension\n\n Spring DI is in spring-beans artifact brought\
+          \ transitively by any `org.springframework.boot:spring-boot-*` dependency\n\
+          \ Add Quarkus dependency `io.quarkus:quarkus-spring-di`"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=springboot
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus DI Guide
+        url: https://quarkus.io/guides/spring-di
+    springboot-plugins-to-quarkus-0000:
+      category: mandatory
+      description: Replace the spring-boot-maven-plugin dependency
+      effort: 1
+      incidents:
+      - codeSnip: 14                  <groupId>org.springframework.boot</groupId>
+        lineNumber: 14
+        message: "Replace the `spring-boot-maven-plugin` dependency.\n The `spring-boot-maven-plugin`\
+          \ dependency needs to be replaced with `quarkus-maven-plugin`, so that the\
+          \ application is built with Quarkus, both for running on the JVM and in\
+          \ native mode."
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=springboot
+      - konveyor.io/target=quarkus
+      links:
+      - title: Building Quarkus with maven
+        url: https://quarkus.io/guides/maven-tooling#build-tool-maven
+    springboot-properties-to-quarkus-00000:
+      category: mandatory
+      description: Replace the SpringBoot artifact with Quarkus 'spring-boot-properties'
+        extension
+      effort: 1
+      incidents:
+      - codeSnip: 24              <groupId>org.springframework.boot</groupId>
+        lineNumber: 24
+        message: "Replace the SpringBoot artifact with Quarkus `spring-boot-properties`\
+          \ extension\n\n Spring Configuration Properties is in spring-boot artifact\
+          \ brought transitively by any `org.springframework.boot:spring-boot-*` dependency\n\
+          \ Add Quarkus dependency `io.quarkus:quarkus-spring-boot-properties`"
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=springboot
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus Spring Configuration Properties Guide
+        url: https://quarkus.io/guides/spring-boot-properties
+    springboot-web-to-quarkus-00000:
+      category: mandatory
+      description: Replace the Spring Web artifact with Quarkus 'spring-web' extension
+      effort: 1
+      incidents:
+      - codeSnip: 24              <groupId>org.springframework.boot</groupId>
+        lineNumber: 24
+        message: "Replace the Spring Web artifact with Quarkus `spring-web` extension\n\
+          \n Spring Web is a spring-web artifact brought transitively by any `org.springframework:spring-web*`\
+          \ dependency \n Add Quarkus dependency `io.quarkus:quarkus-spring-web` \n\
+          \ \n Starting with Quarkus version 2.5, the underlying JAX-RS engine must\
+          \ be chosen. For performance reasons,\n the `quarkus-resteasy-reactive-jackson`\
+          \ dependency should be used."
+        uri: pom.xml
+      labels:
+      - konveyor.io/source=springboot
+      - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus Migration Guide 2.5
+        url: https://github.com/quarkusio/quarkus/wiki/Migration-Guide-2.5#spring-web
+      - title: Quarkus Spring Web Guide
+        url: https://quarkus.io/guides/spring-web
+- description: This ruleset provides analysis of logging libraries.
+  name: technology-usage
+  tags:
+  - Bean=EJB XML
+  - Configuration Management=Spring Boot Auto-configuration
+  - Configuration Management=Spring Boot Component Scan
+  - Configuration Management=Spring Boot Configuration
+  - Connect=EJB XML
+  - Embedded framework - Spring DI
+  - Embedded framework - Spring MVC
+  - Embedded framework - Spring Web
+  - Embedded=Spring Boot Auto-configuration
+  - Embedded=Spring Boot Component Scan
+  - Embedded=Spring Boot Configuration
+  - Embedded=Spring DI
+  - Embedded=Spring MVC
+  - Embedded=Spring Web
+  - Execute=Spring DI
+  - Inversion of Control=Spring DI
+  - Java EE=EJB XML
+  - MVC=Spring MVC
+  - Spring Boot Auto-configuration
+  - Spring Boot Component Scan
+  - Spring Boot Configuration
+  - Spring DI
+  - Spring MVC
+  - Spring Web
+  - Sustain=Spring Boot Auto-configuration
+  - Sustain=Spring Boot Component Scan
+  - Sustain=Spring Boot Configuration
+  - View=Spring MVC
+  - View=Spring Web
+  - Web=Spring Web
