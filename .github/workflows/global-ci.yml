@@ -467,7 +467,17 @@ jobs:
             tackle-ui-tests/cypress/videos
 
   e2e-cli-tests:
-    uses: konveyor-ecosystem/kantra-cli-tests/.github/workflows/test-suite.yaml@main
-    with:
-      tag: ${{ inputs.tag }}
-      tier: TIER0
+    if: ${{ inputs.run_cli_tests }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout kantra-cli-tests repo to use dynamically on target (release) branch
+      uses: actions/checkout@v4
+      with:
+          repository: konveyor-ecosystem/kantra-cli-tests
+          ref: ${{ inputs.tag == 'latest' && 'main' || inputs.tag }}
+          path: kantra-cli-tests
+
+    - uses: ./kantra-cli-tests/.github/workflows/test-suite.yaml
+      with:
+        tag: ${{ inputs.tag }}
+        tier: TIER0
