@@ -54,7 +54,7 @@ on:
           The make command to execute from go-konveyor-tests repository
         required: false
         type: string
-        default: make test-tier0 test-tier1
+        default: make test-tier0 test-tier1 test-hub-api
       api_hub_tests_ref:
           description: |
             The branch or PR of the Hub API tests from tackle2-hub repository to clone.
