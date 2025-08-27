@@ -282,6 +282,21 @@
       links:
       - title: Quarkus DI Guide
         url: https://quarkus.io/guides/spring-di
+    springboot-jmx-to-quarkus-00001:
+      category: mandatory
+      description: Spring JMX is not supported by Quarkus with GraalVM on a Native
+        Image
+      effort: 13
+      incidents:
+      - codeSnip: 16      public HashMap<Long, Book> getAllBooks(){
+        lineNumber: 16
+        message: "Spring JMX annotation configuration detected:\n\n Spring JMX is\
+          \ not supported by Quarkus with the GraalVM Native compilation.\n Spring\
+          \ JMX can be used with the Quarkus Hotspot compilation however."
+        uri: src/main/java/com/telran/application/controller/BookQuerriesController.java
+      labels:
+      - konveyor.io/source=springboot
+      - konveyor.io/target=quarkus
     springboot-plugins-to-quarkus-0000:
       category: mandatory
       description: Replace the spring-boot-maven-plugin dependency
