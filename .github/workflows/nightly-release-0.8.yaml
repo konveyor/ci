@@ -1,0 +1,35 @@
+name: Run Konveyor release-0.8 nightly tests
+
+on:
+  schedule:
+    - cron: "35 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  release-0_8-nightly:
+    uses: ./.github/workflows/global-ci.yml
+    with:
+      tag: release-0.8
+      operator_tag: v0.8.0-beta.4
+      api_tests_ref: release-0.8
+      run_api_tests: true
+      ui_tests_ref: release-0.8
+      # Disabled while we wait for stability
+      run_ui_tests: false
+  report_failure:
+    needs: release-0_8-nightly
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure data to Slack workflow
+        id: slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "test": "E2E API",
+              "branch": "release-0.8",
+              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
