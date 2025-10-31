@@ -384,7 +384,7 @@ jobs:
         with:
           name: analysis-tests-output
           include-hidden-files: true
-          path: analysis/tmp_output
+          path: /home/runner/work/ci/ci/go-konveyor-tests/tmp_output
 
   e2e-ui-integration-tests:
     needs: check-images
