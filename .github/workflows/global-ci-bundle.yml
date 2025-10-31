@@ -94,6 +94,12 @@ on:
         required: false
         # TODO: Swap to true once these are passing consistently
         default: false
+      run_cli_tests:
+        description: |
+          A flag that determines whether the CLI tests should be run or not
+        type: boolean
+        required: false
+        default: false
       api_tests_ref:
         description: |
           The branch or PR of the go-konveyor-tests repository to clone.
@@ -120,6 +126,14 @@ on:
           required: false
           type: string
           default: main
+      cli_tests_ref:
+          description: |
+            The branch or PR of the CLI tests from kantra-cli-tests repository.
+            For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+            For a branch, the reference format would just be the branch name.
+          required: false
+          type: string
+          default: latest
       ui_tests_ref:
         description: |
           The branch or PR of the tackle-ui-tests repository to clone.
@@ -177,6 +191,12 @@ on:
         type: boolean
         required: false
         # TODO: Swap to true once these are passing consistently
+        default: false
+      run_cli_tests:
+        description: |
+          A flag that determines whether the CLI tests should be run or not
+        type: boolean
+        required: false
         default: false
       api_tests_ref:
         description: |
@@ -530,3 +550,23 @@ jobs:
             tackle-ui-tests/cypress/screenshots
             tackle-ui-tests/cypress/videos
 
+  e2e-cli-tests:
+    needs: check-images
+    if: ${{ inputs.run_cli_tests }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: extract kantra image URI from bundle
+      # TODO HERE
+
+    - name: Checkout kantra-cli-tests repo to use dynamically on target (release) branch
+      uses: actions/checkout@v4
+      with:
+          repository: konveyor-ecosystem/kantra-cli-tests
+          ref: ${{ inputs.tag == 'latest' && 'main' || inputs.tag }}
+          path: kantra-cli-tests
+
+    - uses: ./kantra-cli-tests/.github/workflows/test-suite.yaml
+      with:
+        image: <TBD> # take from bundle and the full image url
+        tag: latest # take from bundle tag
+        tier: TIER0
