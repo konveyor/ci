@@ -1,0 +1,211 @@
+name: Konveyor e2e nightly
+
+on:
+  schedule:
+    - cron: "5 3 * * *"
+  workflow_call:
+    inputs:
+      branch:
+        description: |
+          The branch that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: |
+          The branch that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main 
+
+jobs:
+  build-java-analyzer-bundle: 
+    runs-on: ubuntu-latest
+    ## This should be a matrix that inlcudes static-report 
+    # rulesets which should trigger the hub and it's components BESIDES the addon-analyzer.
+    # Java analyzer bundle triggers konveyor/analzyer-lsp (which includes all external providers in that repo).
+    # Analyzer-LSP then needs to trigger kai, kantra, tackle-addon-analyzer.
+    # Next we need to build the operator/operator-bundle using all the images.
+    # Next we need to define the end-to-end tests to run and run a matrix for
+    # 1. tackle2-hub/operator
+    # 2. kantra -> Needs to run on mac/windows/linux
+    # 3. kai -> Needs to run on mac/windows/linux
+    # Each of these, needs to have a test for all the external providers built here
+    # 1. java-external-provider
+    # 2. javascript provider (needs rename)
+    # 3. python provider
+    # 4. golang provider
+  strategy:
+    matrix:
+      config: [{"repo": "kovneyor/ruleset", "image_name": "", "dependent_repos": []}, {"repo": "konveyor/java-analyzer-bundle", "dependent_repos": []}, {"repo": "konveyor/static-report", "dependent_repos": []}]
+
+    steps: 
+      - name: Checkout repo
+        id: checkout
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.config.repo }}
+          ref: ${{ github.event.inputs.branch }}
+      
+      - name: build image
+        id: build_image
+        run: |
+          DATE_TAG=$(date +%Y-%m-%d_%H-%M)
+          echo "date=${DATE_TAG}" >> $GITHUB_OUTPUT
+          podman build -t quay.io/konveyor/jdtls-server-base:nightly-${DATE_TAG} .
+          mkdir -p image_artifact
+          podman save quay.io/konveyor/jdtls-server-base:nightly-${DATE_TAG} image_artifact/quay.io_konveyor_jdtls-server-base_nightly-${DATE}.tar
+      
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        needs: java_bundle_build
+        with:
+          name: built-image
+          path: image_artifact/quay.io_konveyor_jdtls-server-base_nightly-${{ steps.java_bundle_build.outputs.date }}.tar
+
+
+      - name: Define dependent jobs
+        id: dependnect-jobs
+        run: |
+
+  e2e-api-integration-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Extract pull request number from inputs or PR description
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[A|a][P|p][I|i] [T|t]ests [P|p][R|r]:\s*\K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && GOLANG_TESTS_REF=${{ inputs.api_tests_ref }} \
+            || GOLANG_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "GOLANG_TESTS_REF=${GOLANG_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using GOLANG_TESTS_REF \`${GOLANG_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout golang api tests repo
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/go-konveyor-tests
+          path: go-konveyor-tests
+          ref: "${{ env.GOLANG_TESTS_REF }}"
+
+      # TODO Should DRY this
+      - name: set up docker buildx
+        if: "${{ inputs.component_name != '' }}"
+        uses: docker/setup-buildx-action@v2
+
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.7
+        if: "${{ startsWith(inputs.operator_tag, 'v0.7') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.8
+        if: "${{ startsWith(inputs.operator_tag, 'v0.8') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+        if: "${{ startsWith(inputs.operator_tag, 'latest') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+
+      - name: Download artifact
+        if: "${{ inputs.component_name != '' }}"
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.component_name }}
+          path: /tmp/container_images
+
+      - name: Load images
+        if: "${{ inputs.component_name != '' }}"
+        env:
+          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+        run: |
+          eval $(minikube -p minikube docker-env)
+          for image in $(
+            find "${IMAGES_PATH}" -type f -name "*.tar"
+          ); do
+            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
+            docker load --input ${image}
+          done
+
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.7
+        if: "${{ startsWith(inputs.operator_tag, 'v0.7') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.8
+        if: "${{ startsWith(inputs.operator_tag, 'v0.8') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@main
+        if: "${{ inputs.operator_tag == 'latest'}}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      # end DRY
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.23
+
+      - name: Install test dependencies
+        run: |
+          go install github.com/onsi/ginkgo/v2/ginkgo
+        working-directory: go-konveyor-tests
+
+      - name: Build and run golang API tests
+        run: |
+          export HUB_BASE_URL="http://$(minikube ip)/hub"
+          export HUB_TESTS_REF="${{ inputs.api_hub_tests_ref }}"
+          export DEBUG=1
+          set -o pipefail; ${{ inputs.api_tests_tiers }} | tee /tmp/tests.log
+        working-directory: go-konveyor-tests
+      - name: Prepare summary
+        if: always()
+        run: |
+          if [[ -f /tmp/tests.log ]]; then
+            grep -- '---' /tmp/tests.log >> "$GITHUB_STEP_SUMMARY"
+          fi || true
+      - name: Upload analysis tests output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-tests-output
+          include-hidden-files: true
+          path: analysis/tmp_output

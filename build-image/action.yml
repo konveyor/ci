@@ -1,0 +1,120 @@
+name: Build Image
+
+inputs:
+  repo:
+    description: |
+      The name of the repository to build (e.g., "konveyor/analyzer-lsp")
+    required: true
+    type: string
+  ref:
+    description: |
+      The branch, tag or ref to use during checkout of the repository (e.g., "main")
+    required: false
+    type: string
+    default: "main"
+  base_image:
+    description: |
+      The name of the base image to load into podman before building. This will use the same tag to test with
+    required: false
+    type: string
+  image_name:
+    description: |
+      The name of the image to build (e.g., "my-app")
+    required: true
+    type: string
+  image_tag:
+    description: |
+      The tag for the image (e.g., "latest", "v1.0.0")
+    required: true
+    type: string
+    default: "latest"
+  dockerfile_path:
+    description: |
+      Path to the Dockerfile or Containerfile
+    type: string
+    default: "Dockerfile"
+  build_context:
+    description: |
+      Build context directory
+    type: string
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo }}
+        ref: ${{ inputs.ref }}
+
+    - name: Setup podman build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/tmp/buildah-cache
+          $TMPDIR/buildah-cache
+        key: ${{ runner.os }}-podman-buildcache
+        restore-keys: |
+          ${{ runner.os }}-podman-buildcache
+
+    - name: Download base image artifact
+      if: "${{ inputs.base_image != '' }}"
+      id: download-artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.base_image }}
+        path: /tmp/base_images
+
+    - name: Load base image into podman
+      if: "${{ inputs.base_image != '' }}"
+      shell: bash
+      env:
+        IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+      run: |
+        echo "Loading base image from ${IMAGES_PATH}"
+        for image in $(find "${IMAGES_PATH}" -type f -name "*.tar"); do
+          echo "Loading image: ${image}" | tee -a "$GITHUB_STEP_SUMMARY"
+          podman load -i "${image}"
+        done
+        echo "Loaded images:" | tee -a "$GITHUB_STEP_SUMMARY"
+        podman images | tee -a "$GITHUB_STEP_SUMMARY"
+
+    - name: Build image with podman
+      id: build_image
+      shell: bash
+      run: |
+        IMAGE_NAME="${{ inputs.image_name }}"
+        IMAGE_TAG="${{ inputs.image_tag }}"
+        FULL_IMAGE_NAME="quay.io/konveyor/${IMAGE_NAME}:${IMAGE_TAG}"
+
+        echo "Building image: ${FULL_IMAGE_NAME}"
+        podman build \
+          -f "${{ inputs.dockerfile_path }}" \
+          -t "${FULL_IMAGE_NAME}" \
+          "${{ inputs.build_context }}"
+
+        echo "Saving image to tar file..."
+        TAR_FILE="image_artifact/${IMAGE_NAME}_${IMAGE_TAG}.tar"
+        mkdir -p ${TAR_FILE}
+        podman save "${FULL_IMAGE_NAME}" -o "${TAR_FILE}"
+
+        echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+        echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+        echo "tar_file=${TAR_FILE}" >> $GITHUB_OUTPUT
+        echo "full_image_name=${FULL_IMAGE_NAME}" >> $GITHUB_OUTPUT
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}
+        path: ${{ steps.build_image.outputs.tar_file }}
+        retention-days: 1
+
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## Build Image Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image Name**: ${{ steps.build_image.outputs.full_image_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Artifact Name**: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY

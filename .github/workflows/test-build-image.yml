@@ -1,0 +1,98 @@
+name: Konveyor CI repo testing image build action
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        description: |
+          The name of the repository to build (e.g., "konveyor/analyzer-lsp")
+        required: true
+        type: string
+      ref:
+        description: |
+          The branch, tag or ref to use during checkout of the repository (e.g., "main")
+        required: false
+        type: string
+        default: "main"
+      base_image:
+        description: |
+          The name of the base image to load into podman before building. This will use the same tag to test with
+        required: false
+        type: string
+      image_name:
+        description: |
+          The name of the image to build (e.g., "my-app")
+        required: true
+        type: string
+      image_tag:
+        description: |
+          The tag for the image (e.g., "latest", "v1.0.0")
+        required: true
+        type: string
+        default: "latest"
+      dockerfile_path:
+        description: |
+          Path to the Dockerfile or Containerfile
+        type: string
+        default: "Dockerfile"
+      build_context:
+        description: |
+          Build context directory
+        type: string
+        default: "."
+
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: |
+          The name of the repository to build (e.g., "konveyor/analyzer-lsp")
+        required: true
+        type: string
+      ref:
+        description: |
+          The branch, tag or ref to use during checkout of the repository (e.g., "main")
+        required: false
+        type: string
+        default: "main"
+      base_image:
+        description: |
+          The name of the base image to load into podman before building. This will use the same tag to test with
+        required: false
+        type: string
+      image_name:
+        description: |
+          The name of the image to build (e.g., "my-app")
+        required: true
+        type: string
+      image_tag:
+        description: |
+          The tag for the image (e.g., "latest", "v1.0.0")
+        required: true
+        type: string
+        default: "latest"
+      dockerfile_path:
+        description: |
+          Path to the Dockerfile or Containerfile
+        type: string
+        default: "Dockerfile"
+      build_context:
+        description: |
+          Build context directory
+        type: string
+        default: "."
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Image
+        uses: ./build-image
+        with:
+          repo: ${{ github.events.input.repo }}
+          ref: ${{ github.events.input.ref }}
+          base_image: ${{ github.events.input.base_image }}
+          image_name: ${{ github.events.input.image_name }}
+          image_tag: ${{ github.events.input.image_tag }}
+          dockerfile_path: ${{ github.events.input.dockerfile_path }}
+          build_context: ${{ github.events.input.build_context }}
+
