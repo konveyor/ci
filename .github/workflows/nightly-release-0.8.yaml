@@ -10,7 +10,7 @@ jobs:
     uses: ./.github/workflows/global-ci.yml
     with:
       tag: release-0.8
-      operator_tag: v0.8.1-alpha.2
+      operator_tag: v0.8.1-beta.1
       api_tests_ref: release-0.8
       run_api_tests: true
       ui_tests_ref: release-0.8
