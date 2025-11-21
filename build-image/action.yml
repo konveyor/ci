@@ -1,0 +1,195 @@
+name: Build Image
+
+inputs:
+  repo:
+    description: |
+      The name of the repository to build (e.g., "konveyor/analyzer-lsp")
+    required: true
+    type: string
+  ref:
+    description: |
+      The branch, tag or ref to use during checkout of the repository (e.g., "main")
+    required: false
+    type: string
+    default: "main"
+  base_image:
+    description: |
+      The name of the base image to load into podman before building. This will use the same tag to test with
+    required: false
+    type: string
+  image_name:
+    description: |
+      The name of the image to build (e.g., "my-app", "quay.io/myorg/my-app").
+      Must not contain colons (:) or @ characters - use image_tag for version/digest.
+      Maximum 255 characters per OCI specification.
+    required: true
+    type: string
+  image_tag:
+    description: |
+      The tag for the image (e.g., "latest", "v1.0.0").
+      Must not contain colons (:), slashes (/), or @ characters.
+      Cannot start with a period (.) or hyphen (-).
+      Maximum 128 characters per OCI specification.
+    required: true
+    type: string
+    default: "latest"
+  dockerfile_path:
+    description: |
+      Path to the Dockerfile or Containerfile
+    type: string
+    default: "Dockerfile"
+  build_context:
+    description: |
+      Build context directory
+    type: string
+    default: "."
+  checked_out:
+    description: |
+      If the repository is already checked out
+    type: boolean
+    default: false
+  build_args:
+    description: |
+      Build arguments to pass to podman build (e.g., "ARG1=value1 ARG2=value2")
+    type: string
+    required: false
+    default: ""
+  cache-key-file:
+    description: |
+      This is going to be the file that will determine if there is a cache, based on its hash.
+    type: string
+    default: go.sum
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      if: ${{ !inputs.checked_out }}
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo }}
+        ref: ${{ inputs.ref }}
+
+    - name: Setup podman build cache
+      uses: actions/cache@v4
+      with:
+        path: /var/tmp/buildah-cache-1001
+        key: ${{ inputs.image_name }}-${{ hashFiles(inputs.cache-key-file) }}
+        restore-keys: |
+          ${{ inputs.image_name }}-${{ hashFiles(inputs.cache-key-file) }}
+
+    - name: Download base image artifact
+      if: "${{ inputs.base_image != '' }}"
+      id: download-artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.base_image }}
+        path: /tmp/base_images
+
+    - name: Load base image into podman
+      if: "${{ inputs.base_image != '' }}"
+      shell: bash
+      env:
+        IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+      run: |
+        echo "Loading base image from ${IMAGES_PATH}"
+        for image in $(find "${IMAGES_PATH}" -type f -name "*.tar"); do
+          echo "Loading image: ${image}" | tee -a "$GITHUB_STEP_SUMMARY"
+          podman load -i "${image}"
+        done
+        echo "Loaded images:" | tee -a "$GITHUB_STEP_SUMMARY"
+        podman images | tee -a "$GITHUB_STEP_SUMMARY"
+
+    - name: Build image with podman
+      id: build_image
+      shell: bash
+      run: |
+        IMAGE_NAME="${{ inputs.image_name }}"
+        IMAGE_TAG="${{ inputs.image_tag }}"
+
+        # Validate image_name and image_tag per OCI Distribution Specification
+        # Container image format: [registry/][namespace/]name[:tag|@digest]
+        # We split at : and @, so image_name should only have registry/namespace/name
+        # and image_tag should only have the tag (no : or @ or /)
+
+        # Validate image_name
+        if [[ "${IMAGE_NAME}" == *":"* ]] || [[ "${IMAGE_NAME}" == *"@"* ]]; then
+          echo "Error: image_name must not contain colons (:) or @ characters"
+          echo "Found: ${IMAGE_NAME}"
+          echo "Separate the tag/digest into the image_tag input"
+          exit 1
+        fi
+
+        if [[ ${#IMAGE_NAME} -gt 255 ]]; then
+          echo "Error: image_name exceeds maximum length of 255 characters"
+          echo "Length: ${#IMAGE_NAME}"
+          exit 1
+        fi
+
+        # Validate image_tag per OCI spec
+        if [[ "${IMAGE_TAG}" == *":"* ]] || [[ "${IMAGE_TAG}" == *"@"* ]] || [[ "${IMAGE_TAG}" == *"/"* ]]; then
+          echo "Error: image_tag must not contain colons (:), @ characters, or slashes (/)"
+          echo "Found: ${IMAGE_TAG}"
+          echo "Tags should be simple version identifiers (e.g., 'latest', 'v1.0.0')"
+          exit 1
+        fi
+
+        if [[ "${IMAGE_TAG}" =~ ^[.-] ]]; then
+          echo "Error: image_tag cannot start with a period (.) or hyphen (-)"
+          echo "Found: ${IMAGE_TAG}"
+          exit 1
+        fi
+
+        if [[ ${#IMAGE_TAG} -gt 128 ]]; then
+          echo "Error: image_tag exceeds maximum length of 128 characters"
+          echo "Length: ${#IMAGE_TAG}"
+          exit 1
+        fi
+
+        FILE_NAME="${IMAGE_NAME//\//_}--${IMAGE_TAG//\//_}"
+
+        # Parse build args
+        BUILD_ARGS=""
+        if [ -n "${{ inputs.build_args }}" ]; then
+          for arg in ${{ inputs.build_args }}; do
+            BUILD_ARGS="${BUILD_ARGS} --build-arg ${arg}"
+          done
+        fi
+
+        echo "Building image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        echo "Build args: ${BUILD_ARGS}"
+        podman build \
+          -f "${{ inputs.dockerfile_path }}" \
+          -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+          ${BUILD_ARGS:-} \
+          "${{ inputs.build_context }}"
+
+        echo "Saving image to tar file..."
+        TAR_FILE="image_artifact/${FILE_NAME}.tar"
+        mkdir -p image_artifact/
+        echo "Running podman save ${IMAGE_NAME}:${IMAGE_TAG} -o ${TAR_FILE}" 
+        podman save "${IMAGE_NAME}:${IMAGE_TAG}" -o "${TAR_FILE}"
+        
+
+        echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+        echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+        echo "tar_file=${TAR_FILE}" >> $GITHUB_OUTPUT
+        echo "file_name=${FILE_NAME}" >> $GITHUB_OUTPUT
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build_image.outputs.file_name }}
+        path: ${{ steps.build_image.outputs.tar_file }}
+        retention-days: 1
+    
+      
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## Build Image Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image Name**: ${{ steps.build_image.outputs.image_name }}:${{ steps.build_image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Artifact Name**: ${{ steps.build_image.outputs.file_name }}" >> $GITHUB_STEP_SUMMARY
+        
