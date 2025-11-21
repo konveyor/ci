@@ -1,0 +1,463 @@
+name: Konveyor e2e CI shared workflow (kind)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: |
+          The tag that should be used to pull all konveyor related images.
+          For example, if you wanted to set a nightly build for release-0.2, you would specify
+          "release-0.2".
+        required: false
+        type: string
+        default: latest
+      operator_tag:
+        description: |
+          The tag name for operator to be used for setup, e.g. a build for release-0.3,
+          you would specify "v0.3.0".
+        required: false
+        type: string
+        default: latest
+      component_name:
+        description: |
+          The name of the component being tested, ie konveyor-hub, analyzer-lsp, etc.
+          Must correspond to an artifact storing the custom built image, named <component_name>,
+          and should contain the file <component_name>.tar inside.
+        required: false
+        type: string
+      run_api_tests:
+        description: |
+          A flag that determines whether the API tests should be run or not
+        type: boolean
+        required: false
+        default: true
+      run_ui_tests:
+        description: |
+          A flag that determines whether the UI tests should be run or not
+        type: boolean
+        required: false
+        default: true
+      api_tests_ref:
+        description: |
+          The branch or PR of the go-konveyor-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            Go tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+      api_tests_tiers:
+        description: |
+          The make command to execute from go-konveyor-tests repository
+        required: false
+        type: string
+        default: make test-tier0 test-tier1 test-hub-api
+      api_hub_tests_ref:
+          description: |
+            The branch or PR of the Hub API tests from tackle2-hub repository to clone.
+            For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+            For a branch, the reference format would just be the branch name.
+          required: false
+          type: string
+          default: main
+      ui_tests_ref:
+        description: |
+          The branch or PR of the tackle-ui-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            UI tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+      ui_test_tags:
+        description: |
+          A comma separated list of test tags/tiers to select the ui tests to run. Each tag/tier
+          needs to be explicitly included in the list. For example, to use tiers ci, 0, 1, and 2,
+          the value should be: "@ci,@tier0,@tier1,@tier2".
+        required: false
+        type: string
+        default: "@ci"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: |
+          The tag that should be used to pull all konveyor related images.
+          For example, if you wanted to set a nightly build for release-0.2, you would specify
+          "release-0.2".
+        required: false
+        type: string
+        default: latest
+      operator_tag:
+        description: |
+          The tag name for operator to be used for setup, e.g. a build for release-0.3,
+          you would specify "v0.3.0".
+        required: false
+        type: string
+        default: latest
+      component_name:
+        description: |
+          The name of the component being tested, ie konveyor-hub, analyzer-lsp, etc.
+          Must correspond to an artifact storing the custom built image, named <component_name>,
+          and should contain the file <component_name>.tar inside.
+        required: false
+        type: string
+      run_api_tests:
+        description: |
+          A flag that determines whether the API tests should be run or not
+        type: boolean
+        required: false
+        default: true
+      run_ui_tests:
+        description: |
+          A flag that determines whether the UI tests should be run or not
+        type: boolean
+        required: true
+        default: true
+      api_tests_ref:
+        description: |
+          The branch or PR of the go-konveyor-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            Go tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+      api_tests_tiers:
+        description: |
+          The make command to execute from go-konveyor-tests repository
+        required: false
+        type: string
+        default: make test-tier0 test-tier1
+      api_hub_tests_ref:
+          description: |
+            The branch or PR of the Hub API tests from tackle2-hub repository to clone.
+            For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+            For a branch, the reference format would just be the branch name.
+          required: false
+          type: string
+          default: main
+      ui_tests_ref:
+        description: |
+          The branch or PR of the tackle-ui-tests repository to clone.
+          For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
+          For a branch, the reference format would just be the branch name.
+          This input can be set automatically on a pull request by adding a string of the format:
+            UI tests PR: 140
+          replacing "140" with the appropriate PR number. This will make it easier to coordinate changes
+          that require updating the global tests as well.
+        required: false
+        type: string
+        default: main
+      ui_test_tags:
+        description: |
+          A comma separated list of test tags/tiers to select the ui tests to run. Each tag/tier
+          needs to be explicitly included in the list. For example, to use tiers ci, 0, 1, and 2,
+          the value should be: "@ci,@tier0,@tier1,@tier2".
+        required: false
+        type: string
+        default: "@ci"
+
+jobs:
+  e2e-api-integration-tests:
+    if: ${{ inputs.run_api_tests }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Extract pull request number from inputs or PR description
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[A|a][P|p][I|i] [T|t]ests [P|p][R|r]:\s*\K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && GOLANG_TESTS_REF=${{ inputs.api_tests_ref }} \
+            || GOLANG_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "GOLANG_TESTS_REF=${GOLANG_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using GOLANG_TESTS_REF \`${GOLANG_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout golang api tests repo
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/go-konveyor-tests
+          path: go-konveyor-tests
+          ref: "${{ env.GOLANG_TESTS_REF }}"
+
+      # TODO Should DRY this
+
+      - name: Start kind cluster
+        id: kind
+        uses: helm/kind-action@v1
+        with:
+          registry: true
+          registry_name: konveyor
+          registry_port: 5001
+          registry_enable_delete: true
+
+      - name: Download artifact
+        if: "${{ inputs.component_name != '' }}"
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.component_name }}
+          path: /tmp/container_images
+
+      - name: Load images
+        if: "${{ inputs.component_name != '' }}"
+        env:
+          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+        run: |
+          for image in $(
+            find "${IMAGES_PATH}" -type f -name "*.tar"
+          ); do
+            docker load --input ${image} | awk '/Loaded image:/ {print $2}' | while read loaded_image; do
+              echo "Processing $loaded_image"
+              docker tag "$loaded_image" "${{ steps.kind.outputs.LOCAL_REGISTRY }}/$loaded_image"
+              docker push "${{ steps.kind.outputs.LOCAL_REGISTRY }}/$loaded_image"
+            done
+          done
+
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.7
+        if: "${{ startsWith(inputs.operator_tag, 'v0.7') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.8
+        if: "${{ startsWith(inputs.operator_tag, 'v0.8') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@main
+        if: "${{ inputs.operator_tag == 'latest'}}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      # end DRY
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+
+      - name: Install test dependencies
+        run: |
+          go install github.com/onsi/ginkgo/v2/ginkgo
+        working-directory: go-konveyor-tests
+
+      - name: Build and run golang API tests
+        run: |
+          export HUB_BASE_URL="http://$(minikube ip)/hub"
+          export HUB_TESTS_REF="${{ inputs.api_hub_tests_ref }}"
+          export DEBUG=1
+          set -o pipefail; ${{ inputs.api_tests_tiers }} | tee /tmp/tests.log
+        working-directory: go-konveyor-tests
+      - name: Prepare summary
+        if: always()
+        run: |
+          if [[ -f /tmp/tests.log ]]; then
+            grep -- '---' /tmp/tests.log >> "$GITHUB_STEP_SUMMARY"
+          fi || true
+      - name: Upload analysis tests output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-tests-output
+          include-hidden-files: true
+          path: analysis/tmp_output
+
+  e2e-ui-integration-tests:
+    if: ${{ inputs.run_ui_tests }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    # Note: We can split the input string by comma if we want to run the tags in parallel
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     test-tags:
+    #       - ${{ inputs.ui_test_tags }}
+
+    steps:
+      - name: Extract pull request number from inputs or PR description
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[U|u][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && UI_TESTS_REF=${{ inputs.ui_tests_ref }} \
+            || UI_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "UI_TESTS_REF=${UI_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using UI_TESTS_REF \`${UI_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Checkout ui tests repo
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/tackle-ui-tests
+          path: tackle-ui-tests
+          ref: "${{ env.UI_TESTS_REF }}"
+
+      # TODO Should DRY this
+      - name: set up docker buildx
+        if: "${{ inputs.component_name != '' }}"
+        uses: docker/setup-buildx-action@v2
+
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.7
+        if: "${{ startsWith(inputs.operator_tag, 'v0.7') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.8
+        if: "${{ startsWith(inputs.operator_tag, 'v0.8') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+        if: "${{ startsWith(inputs.operator_tag, 'latest') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+
+      - name: Download artifact
+        if: "${{ inputs.component_name != '' }}"
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.component_name }}
+          path: /tmp/container_images
+
+      - name: Load images
+        if: "${{ inputs.component_name != '' }}"
+        env:
+          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+        run: |
+          eval $(minikube -p minikube docker-env)
+          for image in $(
+            find "${IMAGES_PATH}" -type f -name "*.tar"
+          ); do
+            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
+            docker load --input ${image}
+          done
+
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.7
+        if: "${{ startsWith(inputs.operator_tag, 'v0.7') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          java-provider-image: "quay.io/konveyor/java-external-provider:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.8
+        if: "${{ startsWith(inputs.operator_tag, 'v0.8') }}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          java-provider-image: "quay.io/konveyor/java-external-provider:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      - name: install konveyor
+        uses: konveyor/tackle2-operator/.github/actions/install-tackle@main
+        if: "${{ inputs.operator_tag == 'latest'}}"
+        with:
+          operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
+          hub-image: "quay.io/konveyor/tackle2-hub:${{ inputs.tag }}"
+          ui-image: "quay.io/konveyor/tackle2-ui:${{ inputs.tag }}"
+          addon-analyzer-image: "quay.io/konveyor/tackle2-addon-analyzer:${{ inputs.tag }}"
+          java-provider-image: "quay.io/konveyor/java-external-provider:${{ inputs.tag }}"
+          image-pull-policy: IfNotPresent
+          analyzer-container-memory: 0
+          analyzer-container-cpu: 0
+      # end DRY
+
+      - name: Wait for Ingress and expose UI service
+        run: |
+          external_ip=""
+          echo $external_ip;
+          while [[ -z $external_ip ]]
+            do
+              echo "Waiting for end point..."
+                external_ip=$(kubectl get ingress tackle --template="{{range.status.loadBalancer.ingress}}{{.ip}}{{end}}" -n konveyor-tackle);[[ -z $external_ip ]] &&
+                echo $external_ip;
+                sleep 10;
+            done
+          echo "End point ready:" &&
+          echo $external_ip;
+          echo "UI_URL=https://$(minikube ip)" >>$GITHUB_ENV
+
+      - name: Run login tests
+        uses: cypress-io/github-action@v6
+        env:
+          CYPRESS_user: admin
+          CYPRESS_pass: password
+          CYPRESS_baseUrl: "${{ env.UI_URL }}"
+          CYPRESS_tackleUrl: "${{ env.UI_URL }}"
+        with:
+          working-directory: tackle-ui-tests
+          spec: "cypress/e2e/tests/login.test.ts"
+
+      - name: Run UI tests (${{ inputs.ui_test_tags }})
+        uses: cypress-io/github-action@v6
+        env:
+          CYPRESS_INCLUDE_TAGS: "${{ inputs.ui_test_tags }}"
+          CYPRESS_user: "admin"
+          CYPRESS_pass: "Dog8code"
+          CYPRESS_baseUrl: "${{ env.UI_URL }}"
+          CYPRESS_tackleUrl: "${{ env.UI_URL }}"
+          CYPRESS_git_user: "fakeuser"
+          CYPRESS_git_password: "${{ secrets.GITHUB_TOKEN }}"
+          CYPRESS_git_key: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          working-directory: tackle-ui-tests
+          # spec can be removed once https://github.com/konveyor/tackle-ui-tests/pull/1331 merges
+          spec: "**/*.test.ts"
+
+      - name: Upload cypress report data as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tackle-ui-test-reports-${{ inputs.test-tags }}
+          path: |
+            tackle-ui-tests/cypress/reports
+            tackle-ui-tests/cypress/screenshots
+            tackle-ui-tests/cypress/videos
