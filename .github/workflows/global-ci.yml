@@ -320,25 +320,6 @@ jobs:
     #       - ${{ inputs.ui_test_tags }}
 
     steps:
-      - name: Extract pull request number from inputs or PR description
-        env:
-          body: ${{ github.event.pull_request.body }}
-        run: |
-          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[U|u][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
-          [ -z "$PULL_REQUEST_NUMBER" ] \
-            && UI_TESTS_REF=${{ inputs.ui_tests_ref }} \
-            || UI_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
-
-          echo "UI_TESTS_REF=${UI_TESTS_REF}" >>"$GITHUB_ENV"
-          echo "Using UI_TESTS_REF \`${UI_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
-
-      - name: Checkout ui tests repo
-        uses: actions/checkout@v4
-        with:
-          repository: konveyor/tackle-ui-tests
-          path: tackle-ui-tests
-          ref: "${{ env.UI_TESTS_REF }}"
-
       # TODO Should DRY this
       - name: set up docker buildx
         if: "${{ inputs.component_name != '' }}"
@@ -420,56 +401,24 @@ jobs:
           image-pull-policy: IfNotPresent
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
-      # end DRY
 
       - name: Wait for Ingress and expose UI service
         run: |
-          external_ip=""
-          echo $external_ip;
-          while [[ -z $external_ip ]]
-            do
-              echo "Waiting for end point..."
-                external_ip=$(kubectl get ingress tackle --template="{{range.status.loadBalancer.ingress}}{{.ip}}{{end}}" -n konveyor-tackle);[[ -z $external_ip ]] &&
-                echo $external_ip;
-                sleep 10;
-            done
-          echo "End point ready:" &&
-          echo $external_ip;
-          echo "UI_URL=https://$(minikube ip)" >>$GITHUB_ENV
+          kubectl wait \
+            -n konveyor-tackle \
+            ingress/tackle \
+            --timeout=600s \
+            --for=jsonpath='{.status.loadBalancer.ingress[0]}'
 
-      - name: Run login tests
-        uses: cypress-io/github-action@v6
-        env:
-          CYPRESS_user: admin
-          CYPRESS_pass: password
-          CYPRESS_baseUrl: "${{ env.UI_URL }}"
-          CYPRESS_tackleUrl: "${{ env.UI_URL }}"
-        with:
-          working-directory: tackle-ui-tests
-          spec: "cypress/e2e/tests/login.test.ts"
+          minikube_ip=$(minikube ip)
+          echo "ingress is ready at: ${minikube_ip}"
+          echo "UI_URL=https://${minikube_ip}" >>$GITHUB_ENV
+      # end DRY
 
-      - name: Run UI tests (${{ inputs.ui_test_tags }})
-        uses: cypress-io/github-action@v6
-        env:
-          CYPRESS_INCLUDE_TAGS: "${{ inputs.ui_test_tags }}"
-          CYPRESS_user: "admin"
-          CYPRESS_pass: "Dog8code"
-          CYPRESS_baseUrl: "${{ env.UI_URL }}"
-          CYPRESS_tackleUrl: "${{ env.UI_URL }}"
-          CYPRESS_git_user: "fakeuser"
-          CYPRESS_git_password: "${{ secrets.GITHUB_TOKEN }}"
-          CYPRESS_git_key: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Run UI tests
+        uses: sjd78/konveyor-ci/.github/actions/run-ui-tests@main
         with:
-          working-directory: tackle-ui-tests
-          # spec can be removed once https://github.com/konveyor/tackle-ui-tests/pull/1331 merges
-          spec: "**/*.test.ts"
-
-      - name: Upload cypress report data as artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: tackle-ui-test-reports-${{ inputs.test-tags }}
-          path: |
-            tackle-ui-tests/cypress/reports
-            tackle-ui-tests/cypress/screenshots
-            tackle-ui-tests/cypress/videos
+          ui_tests_ref: ${{ inputs.ui_tests_ref }}
+          ui_test_tags: ${{ inputs.ui_test_tags }}
+          ui_url: ${{ env.UI_URL }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
