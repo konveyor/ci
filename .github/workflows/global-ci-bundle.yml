@@ -479,10 +479,22 @@ jobs:
           echo "UI_URL=https://${minikube_ip}" >>$GITHUB_ENV
       # end DRY
 
+      - name: Extract pull request number from inputs or PR description
+        shell: bash
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[U|u][I|i] [T|t]ests [P|p][R|r]: \K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && UI_TESTS_REF=${{ inputs.ui_tests_ref }} \
+            || UI_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "UI_TESTS_REF=${UI_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "Using UI_TESTS_REF \`${UI_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
       - name: Run UI tests
-        uses: konveyor/ci/.github/actions/run-ui-tests@main
+        uses: konveyor/tackle2-ui/.github/actions/run-ui-tests@main
         with:
-          ui_tests_ref: ${{ inputs.ui_tests_ref }}
-          ui_test_tags: ${{ inputs.ui_test_tags }}
-          ui_url: ${{ env.UI_URL }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          test_tags: ${{ inputs.ui_test_tags }}
+          tests_ref: ${{ env.UI_TESTS_REF }}
+          base_url: ${{ env.UI_URL }}
