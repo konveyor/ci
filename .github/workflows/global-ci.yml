@@ -416,7 +416,7 @@ jobs:
       # end DRY
 
       - name: Run UI tests
-        uses: sjd78/konveyor-ci/.github/actions/run-ui-tests@main
+        uses: konveyor/ci/.github/actions/run-ui-tests@main
         with:
           ui_tests_ref: ${{ inputs.ui_tests_ref }}
           ui_test_tags: ${{ inputs.ui_test_tags }}
