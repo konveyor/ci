@@ -401,8 +401,10 @@ jobs:
           image-pull-policy: IfNotPresent
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
+      # end DRY
 
       - name: Wait for Ingress and expose UI service
+        id: ui-url
         run: |
           kubectl wait \
             -n konveyor-tackle \
@@ -412,10 +414,10 @@ jobs:
 
           ingress_ip=$(kubectl get ingress/tackle -n konveyor-tackle -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "ingress is ready at: ${ingress_ip}"
-          echo "UI_URL=https://${ingress_ip}" >>$GITHUB_ENV
-      # end DRY
+          echo "ui_url=https://${ingress_ip}" >>"$GITHUB_OUTPUT"
 
       - name: Extract pull request number from inputs or PR description
+        id: ui-tests-ref
         shell: bash
         env:
           body: ${{ github.event.pull_request.body }}
@@ -425,12 +427,20 @@ jobs:
             && UI_TESTS_REF=${{ inputs.ui_tests_ref }} \
             || UI_TESTS_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
 
-          echo "UI_TESTS_REF=${UI_TESTS_REF}" >>"$GITHUB_ENV"
+          echo "ref=${UI_TESTS_REF}" >>"$GITHUB_OUTPUT"
           echo "Using UI_TESTS_REF \`${UI_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
 
+      - name: "Checkout run-ui-tests action (ref: ${{ inputs.ui_tests_ref }})"
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/tackle2-ui
+          path: tackle2-ui
+          ref: ${{ inputs.ui_tests_ref }}
+          sparse-checkout: .github/actions/run-ui-tests
+
       - name: Run UI tests
-        uses: konveyor/tackle2-ui/.github/actions/run-ui-tests@main
+        uses: ./tackle2-ui/.github/actions/run-ui-tests
         with:
           test_tags: ${{ inputs.ui_test_tags }}
-          tests_ref: ${{ env.UI_TESTS_REF }}
-          base_url: ${{ env.UI_URL }}
+          tests_ref: ${{ steps.ui-tests-ref.outputs.ref }}
+          base_url: ${{ steps.ui-url.outputs.ui_url }}
