@@ -78,7 +78,6 @@
         url: https://12factor.net/logs
 - name: discovery-rules
   tags:
-  - EJB XML
   - Java Source
   - Maven XML
 - description: This ruleset gives hints to migrate from SpringBoot devtools to Quarkus
@@ -318,11 +317,9 @@
 - description: This ruleset provides analysis of logging libraries.
   name: technology-usage
   tags:
-  - Bean=EJB XML
   - Configuration Management=Spring Boot Auto-configuration
   - Configuration Management=Spring Boot Component Scan
   - Configuration Management=Spring Boot Configuration
-  - Connect=EJB XML
   - Embedded framework - Spring DI
   - Embedded framework - Spring MVC
   - Embedded framework - Spring Web
@@ -334,7 +331,6 @@
   - Embedded=Spring Web
   - Execute=Spring DI
   - Inversion of Control=Spring DI
-  - Java EE=EJB XML
   - MVC=Spring MVC
   - Spring Boot Auto-configuration
   - Spring Boot Component Scan
