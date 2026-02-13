@@ -163,4 +163,5 @@ jobs:
           os: ${{ matrix.os.os }}
           image_pattern: |
             *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
+          ref: ${{ inputs.branch }}
 

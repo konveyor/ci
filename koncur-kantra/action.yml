@@ -13,6 +13,11 @@ inputs:
     description: The pattern used to download the image's that have been built to test
     required: false
     type: string
+  ref:
+    description: The ref of koncur to use for testing
+    required: false
+    type: string
+    default: main
 
 runs:
   using: "composite"
@@ -114,6 +119,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: konveyor/koncur
+        ref: ${{ inputs.ref }}
 
     - name: Setup go
       uses: actions/setup-go@v6

@@ -1,9 +1,4 @@
 config:
-  - repo: "konveyor/tackle-keycloak-theme"
-    image: "quay.io/konveyor/tackle-keycloak-init"
-    dockerfile_path: "Dockerfile.init"
-    context_path: "."
-
   - repo: "konveyor/tackle2-ui"
     image: "quay.io/konveyor/tackle2-ui"
     dockerfile_path: "Dockerfile"
@@ -64,7 +59,8 @@ config:
                 go_mod_update:
                   - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
                   - "github.com/konveyor/analyzer-lsp/external-providers/java-external-provider@BRANCH_PLACEHOLDER"
-                  - "github.com/konveyor/asset-generation@BRANCH_PLACEHOLDER"
+                  ## There are no release branches for asset-generation, so make sure we use the latest code
+                  - "github.com/konveyor/asset-generation@main"
 
       - repo: "konveyor/analyzer-lsp"
         image: "quay.io/konveyor/yq-external-provider"
