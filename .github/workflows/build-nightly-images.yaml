@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: ${{ matrix.image.repo }}
+          ref: ${{ (inputs.tested_repo == '' || matrix.image.repo == inputs.tested_repo) && inputs.branch || github.base_ref || github.ref_name }}
       
       - name: Setup golang
         uses: actions/setup-go@v6
@@ -89,7 +90,7 @@ jobs:
         uses: konveyor/ci/build-image@main
         with:
           repo: ${{ matrix.image.repo }}
-          ref: ${{ inputs.branch }}
+          ref: ${{ (inputs.tested_repo == '' || matrix.image.repo == inputs.tested_repo) && inputs.branch || github.base_ref || github.ref_name }}
           image_name: ${{ matrix.image.image }}
           image_tag: ${{ steps.get_tag.outputs.tag }}
           dockerfile_path: ${{ matrix.image.dockerfile_path }}
