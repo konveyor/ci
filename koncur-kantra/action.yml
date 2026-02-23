@@ -72,6 +72,8 @@ runs:
       ## Loading images
     
     - name: Download Images from artifacts
+      id: download-artifacts
+      continue-on-error: true 
       if: ${{ inputs.image_pattern }}
       uses: actions/download-artifact@v4
       with:
@@ -85,6 +87,15 @@ runs:
       run: |
         ${GITHUB_ACTION_PATH}/load_img.sh ${RUNNER_TEMP}/images
         rm -rf ${RUNNER_TEMP}/images
+
+    ## Run this check only when the downloading was not skipped.
+    - name: Check and download missing images
+      if: ${{ steps.download-artifacts.outcome == 'failure' || steps.download-artifacts.outcome == 'success' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        ${GITHUB_ACTION_PATH}/check_images.sh
 
     ## Koncur testing
     - name: Download and install kantra (macos)
@@ -213,4 +224,3 @@ runs:
         name: koncur-kantra-${{ inputs.os }}-summary
         path: test.yaml
         retention-days: 3
-

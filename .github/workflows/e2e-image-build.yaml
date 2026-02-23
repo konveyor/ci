@@ -1,0 +1,152 @@
+name: e2e Testing Image Build
+
+on:
+  workflow_call:
+    inputs:
+    # There should be no need to pass in anything as we should have all we need
+    # based on the github context
+      repo:
+        description: |
+          This is the repo to simulate the testing from.
+        required: true
+        type: string
+      ref:
+        description: |
+          The ref that should be tested from. Could be a branch or PR. that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: true
+        type: string
+      tag:
+        description: |
+          The tag to use for the images
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: |
+          This is the repo to simulate the testing from.
+        required: false
+        type: string
+      ref:
+        description: |
+          The ref that should be tested from. Could be a branch or PR. that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+      tag:
+        description: |
+          The tag to use for the images
+        required: false
+        type: string
+
+jobs:
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_0: ${{ steps.prepare.outputs.matrix_0 }}
+      matrix_1: ${{ steps.prepare.outputs.matrix_1 }}
+      matrix_2: ${{ steps.prepare.outputs.matrix_2 }}
+      matrix_3: ${{ steps.prepare.outputs.matrix_3 }}
+    steps:
+      ## For now, just using main, but in the future we probably want this to
+      # use the same ref that the workflow is being called at. I don't know 
+      # how to get that information right now
+      - name: Checkout ci repo
+        uses: actions/checkout@v5
+        with:
+          repository: konveyor/ci
+          ref: 'main'
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12' 
+
+      - name: Prepare matrix configs
+        id: prepare
+        shell: bash
+        run: |
+          
+          pip install -r scripts/requirements.txt
+          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ github.base_ref || github.ref_name }} -r ${{ inputs.repo || github.repository }} out
+
+          # The output may be one ore more of these, we should handle the case where these are empty.
+          matrix_0=$(cat out/level_0.json)
+          matrix_1=$(cat out/level_1.json)
+          matrix_2=$(cat out/level_2.json)
+          matrix_3=$(cat out/level_3.json)
+          
+          {
+            echo "matrix_0<<EOF"
+            echo "$matrix_0"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_1<<EOF"
+            echo "$matrix_1"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_2<<EOF"
+            echo "$matrix_2"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_3<<EOF"
+            echo "$matrix_3"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+  
+  build-images:
+    name: "Build level 0 images"
+    if: ${{ fromJSON(needs.prepare-matrix.outputs.matrix_0).image[0] != null }}
+    needs: prepare-matrix
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
+      branch: ${{ inputs.ref || github.ref }}
+      tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
+
+  build-level1-images:
+    name: "Build level 1 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_1).image[0] != null }}
+    needs: 
+    - prepare-matrix
+    - build-images
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
+      branch: ${{ inputs.ref || github.ref }}
+      tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
+
+  build-level2-images:
+    name: "Build level 2 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_2).image[0] != null }}
+    needs: 
+    - prepare-matrix
+    - build-level1-images
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
+      branch: ${{ inputs.ref || github.ref }}
+      tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
+  
+  build-level3-images:
+    name: "Build level 3 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_3).image[0] != null }}
+    needs: 
+    - prepare-matrix
+    - build-level2-images
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
+      branch: ${{ inputs.ref || github.ref }}
+      tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
+     

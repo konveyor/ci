@@ -19,61 +19,66 @@ config:
     dockerfile_path: "Dockerfile"
     context_path: "."
 
+  - repo: "konveyor/analyzer-lsp"
+    image: "quay.io/konveyor/analyzer-lsp"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+    dependent_jobs:
+      - repo: "konveyor/tackle2-addon-analyzer"
+        image: "quay.io/konveyor/tackle2-addon-analyzer"
+        dockerfile_path: "Dockerfile"
+        context_path: "."
+        go_mod_update:
+          - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+
+  - repo: "konveyor/analyzer-lsp"
+    image: "quay.io/konveyor/golang-dependency-provider"
+    dockerfile_path: "./external-providers/golang-dependency-provider/Dockerfile"
+    context_path: "."
+    go_mod_update:
+      - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+    go_mod_directory: "./external-providers/golang-dependency-provider"
+    dependent_jobs:
+      - repo: "konveyor/analyzer-lsp"
+        image: "quay.io/konveyor/generic-external-provider"
+        dockerfile_path: "./external-providers/generic-external-provider/Dockerfile"
+        context_path: "."
+        go_mod_update:
+          - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+        go_mod_directory: "./external-providers/generic-external-provider"
+        base_image_arg: GOLANG_DEP_IMAGE
+        dependent_jobs:
+          # NOTE that the kantra actual requirements are more than this
+          # but this should be changed eventually so not going to deal with it
+          # right now
+          - repo: "konveyor/kantra"
+            image: "quay.io/konveyor/kantra"
+            dockerfile_path: "Dockerfile"
+            context_path: "."
+            go_mod_update:
+              - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+              - "github.com/konveyor/analyzer-lsp/external-providers/java-external-provider@BRANCH_PLACEHOLDER"
+              ## There are no release branches for asset-generation, so make sure we use the latest code
+              - "github.com/konveyor/asset-generation@main"
+
+  - repo: "konveyor/analyzer-lsp"
+    image: "quay.io/konveyor/yq-external-provider"
+    dockerfile_path: "./external-providers/yq-external-provider/Dockerfile"
+    context_path: "."
+    go_mod_update:
+      - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+    go_mod_directory: "./external-providers/yq-external-provider"
+
   - repo: "konveyor/java-analyzer-bundle"
     image: "quay.io/konveyor/jdtls-server-base"
     dockerfile_path: "Dockerfile"
     context_path: "."
     dependent_jobs:
       - repo: "konveyor/analyzer-lsp"
-        image: "quay.io/konveyor/analyzer-lsp"
-        dockerfile_path: "Dockerfile"
-        context_path: "."
-        dependent_jobs:
-          - repo: "konveyor/tackle2-addon-analyzer"
-            image: "quay.io/konveyor/tackle2-addon-analyzer"
-            dockerfile_path: "Dockerfile"
-            context_path: "."
-            go_mod_update:
-              - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
-
-      - repo: "konveyor/analyzer-lsp"
-        image: "quay.io/konveyor/golang-dependency-provider"
-        dockerfile_path: "./external-providers/golang-dependency-provider/Dockerfile"
-        context_path: "."
-        go_mod_update:
-          - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
-        go_mod_directory: "./external-providers/golang-dependency-provider"
-        dependent_jobs:
-          - repo: "konveyor/analyzer-lsp"
-            image: "quay.io/konveyor/generic-external-provider"
-            dockerfile_path: "./external-providers/generic-external-provider/Dockerfile"
-            context_path: "."
-            go_mod_update:
-              - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
-            go_mod_directory: "./external-providers/generic-external-provider"
-            dependent_jobs:
-              - repo: "konveyor/kantra"
-                image: "quay.io/konveyor/kantra"
-                dockerfile_path: "Dockerfile"
-                context_path: "."
-                go_mod_update:
-                  - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
-                  - "github.com/konveyor/analyzer-lsp/external-providers/java-external-provider@BRANCH_PLACEHOLDER"
-                  ## There are no release branches for asset-generation, so make sure we use the latest code
-                  - "github.com/konveyor/asset-generation@main"
-
-      - repo: "konveyor/analyzer-lsp"
-        image: "quay.io/konveyor/yq-external-provider"
-        dockerfile_path: "./external-providers/yq-external-provider/Dockerfile"
-        context_path: "."
-        go_mod_update:
-          - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
-        go_mod_directory: "./external-providers/yq-external-provider"
-
-      - repo: "konveyor/analyzer-lsp"
         image: "quay.io/konveyor/java-external-provider"
         dockerfile_path: "./external-providers/java-external-provider/Dockerfile"
         context_path: "."
+        base_image_arg: JAVA_BUDLE_IMAGE
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
         go_mod_directory: "./external-providers/java-external-provider"

@@ -1,0 +1,57 @@
+name: Run Koncur with kantra config e2e
+
+on:
+  workflow_call:
+    # There should be no need to pass in anything as we should have all we need
+    # based on the github context
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: |
+          This is the repo to simulate the testing from.
+      ref:
+        description: |
+          The ref that should be tested from. Could be a branch or PR. that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main 
+
+jobs:
+
+  build-images:
+    uses: ./.github/workflows/e2e-image-build.yaml
+    with:
+      repo: ${{ inputs.repo || github.repository }}
+      ref: ${{ inputs.ref || github.ref }}
+    secrets: inherit
+
+  run-koncur-action:
+    needs:
+    - build-images
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - os: "linux"
+            runner: "ubuntu-24.04-arm"
+          - os: "macos"
+            runner: "macos-26-large"
+          - os: "windows"
+            runner: "windows-latest"
+        exclude:
+          - os: 
+              os: "macos"
+              runner: "macos-26-large"
+    runs-on: ${{ matrix.os.runner }}
+    steps:
+      - name: Run Koncur Testing
+        id: koncur-test
+        uses: konveyor/ci/koncur-kantra@main
+        with:
+          os: ${{ matrix.os.os }}
+          image_pattern: |
+            *{kantra,provider}--${{ github.run_id }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
+
