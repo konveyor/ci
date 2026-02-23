@@ -62,7 +62,7 @@ jobs:
           for mod_update in ${{ join(matrix.image.go_mod_update, ' ') }}
           do
             echo "updating go mod $mod_update"
-            go get -u $mod_update
+            go get $mod_update
           done
 
           # Run go mod tidy to clean up
