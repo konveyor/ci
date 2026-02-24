@@ -4,12 +4,175 @@ on:
   schedule:
     - cron: "5 3 * * *"
   workflow_call:
+    inputs:
+      branch:
+        description: |
+          The branch that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main
   workflow_dispatch:
+    inputs:
+      branch:
+        description: |
+          The branch that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main 
 
 jobs:
-  run-nightly:
-    uses: konveyor/ci/.github/workflows/nightly-koncur.yaml@main
-    with:
-      branch: release-0.9
-    secrets: inherit
+  nightly-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.get_tag.outputs.tag }}
+    steps:
+      - name: Get Nightly Tag
+        id: get_tag
+        shell: bash
+        run: |
+          date=$(date +'%Y.%m.%d')
+          echo "tag=${{ inputs.branch || 'main' }}_$date" >> $GITHUB_OUTPUT
 
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    needs: nightly-tag
+    outputs:
+      matrix_0: ${{ steps.prepare.outputs.matrix_0 }}
+      matrix_1: ${{ steps.prepare.outputs.matrix_1 }}
+      matrix_2: ${{ steps.prepare.outputs.matrix_2 }}
+      matrix_3: ${{ steps.prepare.outputs.matrix_3 }}
+    steps:
+      - name: Checkout ci repo
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12' 
+
+      - name: Prepare matrix configs
+        id: prepare
+        shell: bash
+        run: |
+          
+          pip install -r scripts/requirements.txt
+          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ needs.nightly-tag.outputs.tag }} -b ${{ inputs.branch || 'main' }} out
+          matrix_0=$(cat out/level_0.json)
+          matrix_1=$(cat out/level_1.json)
+          matrix_2=$(cat out/level_2.json)
+          matrix_3=$(cat out/level_3.json)
+          
+          {
+            echo "matrix_0<<EOF"
+            echo "$matrix_0"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_1<<EOF"
+            echo "$matrix_1"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_2<<EOF"
+            echo "$matrix_2"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_3<<EOF"
+            echo "$matrix_3"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+  
+  build-images:
+    name: "Build level 0 images"
+    if: ${{ fromJSON(needs.prepare-matrix.outputs.matrix_0).image[0] != null }}
+    needs: prepare-matrix
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
+      branch: ${{ inputs.branch || 'release-0.9' }}
+
+  build-level1-images:
+    name: "Build level 1 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_1).image[0] != null }}
+    needs: 
+    - prepare-matrix
+    - build-images
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
+      branch: ${{ inputs.branch || 'release-0.9' }}
+
+  build-level2-images:
+    name: "Build level 2 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_2).image[0] != null }}
+    needs: 
+    - prepare-matrix
+    - build-level1-images
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
+      branch: ${{ inputs.branch || 'release-0.9' }}
+  
+  build-level3-images:
+    name: "Build level 3 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_3).image[0] != null }}
+    needs: 
+    - prepare-matrix
+    - build-level2-images
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
+      branch: ${{ inputs.branch || 'release-0.9' }}
+     
+## Now that all the images are built, we need to build the operator image.
+##
+##
+## Now we need to test full e2e kantra, kai, and the ui/operator.
+## The e2e tests for these, should be in the repos, because an end user
+## may need to debug them. 
+# # For now, to get this workflow working, and show it, I will create the matrix
+#
+## To start, I am going to add back something that looks like the API tests
+## And something that looks like the UI tests.  
+#
+# This will just do kantra testing on the images now.
+#
+#
+  run-koncur-kantra-action:
+    if: ${{ !cancelled() && !failure() }}
+    needs: 
+    - build-images
+    - build-level1-images
+    - build-level2-images
+    - build-level3-images
+    - nightly-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        os: 
+          - os: "linux"
+            runner: "ubuntu-24.04-arm"
+          - os: "macos"
+            runner: "macos-26-large"
+          - os: "windows"
+            runner: "windows-latest"
+        exclude:
+          - os: 
+              os: "macos"
+              runner: "macos-26-large"
+    runs-on: ${{ matrix.os.runner }}
+    steps:
+      - name: Run Koncur Testing
+        id: koncur-test
+        uses: konveyor/ci/koncur-kantra@main
+        with:
+          os: ${{ matrix.os.os }}
+          image_pattern: |
+            *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
+          ref: ${{ inputs.branch || 'release-0.9' }}
+  
