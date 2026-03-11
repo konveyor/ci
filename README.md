@@ -19,6 +19,51 @@ Component | CI (after merge) | Nightly (cron)
 **Kantra CLI** | | [![Nightly CLI test for main](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml/badge.svg)](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml)
 
 
+## NOTE About Future
+
+Today all of the workflows below are deprecated, and we will be moving away from them.
+
+* [global-ci.yml](.github/workflows/global-ci.yml)
+* [nightly-release-0.8.yaml](.github/workflows/nightly-release-0.8.yaml)
+* [ci-repo.yaml](.github/workflows/ci-repo.yaml)
+* [global-ci-bundle.yml](.github/workflows/global-ci-bundle.yml)
+* [nightly-main.yaml](.github/workflows/nightly-main.yaml)
+* [nightly-release-0.7.yaml](.github/workflows/nightly-release-0.7.yaml)
+* [validate-shared-tests.yml](.github/workflows/validate-shared-tests.yml)
+
+These workflows are the new workflows and related files:
+
+* [nightly-matrix-config.yaml](.github/workflows/nightly-matrix-config.yaml)
+> This is the source of truth for how repositories are tied together, what images need to be based on others.
+> Also contains the information for how to build the image for the given repository.
+
+* [nightly-koncur](.github/workflows/nightly-koncur.yaml) and [nightly-koncur-0.9.yaml](.github/workflows/nightly-koncur-0.9.yaml)
+> These are used for the nightly tests, running as a cron.
+> This is responsible for using the [script](scripts/parse_matrix_config.py) to determine the dependency levels for image builds.
+> It will then run for all valid levels with the `build-nightly-images.yaml` workflow.
+> Once all the images are built, it will run koncur for hub and kantra.
+> Note: the release-0.9 version hardcodes the branch and reuses `nightly-koncur.yaml`.
+
+* [build-nightly-images.yaml](.github/workflows/build-nightly-images.yaml)
+> This is used for building the images for a given level of image builds. It creates a matrix of the build images, that will:
+> * Check out the repo
+> * Update Go module dependencies and apply any cross-repo replacements
+> * Build the image using the image build action.
+
+
+These are the new e2e workflows, to potentially be re-used by repos in the organization.
+
+* [e2e-image-build.yaml](.github/workflows/e2e-image-build.yaml)
+> This is the core re-usable way to correctly build all the images in the system that need to be rebuilt based on a PR.
+> Uses the nightly-matrix-config and the build-nightly-images.yaml to build the correct subset of images.
+
+* [e2e-hub-koncur](.github/workflows/e2e-hub-koncur.yaml)
+> Uses the e2e-image-build to build the correct images and then runs the hub koncur action.
+
+* [e2e-kantra-koncur](.github/workflows/e2e-kantra-koncur.yaml)
+> Uses the e2e-image-build to build the correct images and then runs the kantra koncur action for Linux and Windows.
+> Note: macOS is currently too slow to run.
+
 ## Using the global-ci github workflow
 
 This repository is home to the [global-ci github workflow](https://github.com/konveyor/ci/tree/main/.github/workflows/global-ci.yml).

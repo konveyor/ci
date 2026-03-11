@@ -31,6 +31,10 @@ jobs:
   build-images:
     name: Build Images ${{ matrix.image.image }}-${{ matrix.os.arch }}
     runs-on: ${{ matrix.os.runner }}
+    env:
+      GONOSUMCHECK: "*"
+      GOFLAGS: "-mod=mod"
+      GOPROXY: direct
     strategy:
       fail-fast: false
       matrix: 
@@ -42,28 +46,52 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: ${{ matrix.image.repo }}
-          ref: ${{ (inputs.tested_repo == '' || matrix.image.repo == inputs.tested_repo) && inputs.branch || github.base_ref || github.ref_name }}
+          # This will:
+          # Use an override ref if set for the matrix
+          # Use the branch that is passed in as input
+          # If a pr, will use the base_ref
+          # If not a pr will use the ref 
+          ref: ${{ matrix.image.ref || (matrix.image.repo == inputs.tested_repo && github.ref) || github.base_ref || github.ref_name }}
       
       - name: Setup golang
         uses: actions/setup-go@v6
         with:
           go-version: '1.25' 
       
+      - name: Apply go mod replaces
+        id: go_mod_replaces
+        shell: bash
+        if: matrix.image.go_mod_replaces != '' && matrix.image.go_mod_replaces[0] != null
+        env:
+          GO_MOD_REPLACES_JSON: ${{ toJSON(matrix.image.go_mod_replaces) }}
+        run: |
+          GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"
+          cd "$GO_MOD_DIR"
+          echo "Applying go mod replaces in directory: $(pwd)"
+
+          REPLACE_ARGS=()
+          while IFS= read -r replace; do
+            echo "  -replace $replace"
+            REPLACE_ARGS+=("-replace" "$replace")
+          done < <(echo "$GO_MOD_REPLACES_JSON" | jq -r '.[]')
+          go mod edit "${REPLACE_ARGS[@]}"
+
       - name: Update go mod to the branch
         id: go_mod
         shell: bash
         if: matrix.image.go_mod_update != '' && matrix.image.go_mod_update[0] != null
+        env:
+          GO_MOD_UPDATE_JSON: ${{ toJSON(matrix.image.go_mod_update) }}
         run: |
           # Change to the specified directory if provided, otherwise use current directory
           GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"
           cd "$GO_MOD_DIR"
           echo "Running go mod commands in directory: $(pwd)"
 
-          for mod_update in ${{ join(matrix.image.go_mod_update, ' ') }}
-          do
+          while IFS= read -r mod_update; do
             echo "updating go mod $mod_update"
-            go get $mod_update
-          done
+            go get "$mod_update"
+          done < <(echo "$GO_MOD_UPDATE_JSON" | jq -r '.[]')
 
           # Run go mod tidy to clean up
           go mod tidy

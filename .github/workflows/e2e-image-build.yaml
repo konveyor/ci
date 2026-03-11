@@ -65,13 +65,48 @@ jobs:
         with:
           python-version: '3.12' 
 
+      - name: Get ci comments
+        id: get_ci_comments
+        if: github.event.pull_request.number
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          OVERRIDES=$(gh pr view "$PR_NUMBER" -R "$REPO" --json comments \
+            | jq -c '[.comments[] | select(.body | startswith("/ci test-with")) | .body | ltrimstr("/ci test-with ")]')
+          echo "overrides=$OVERRIDES" >> $GITHUB_OUTPUT
+
       - name: Prepare matrix configs
         id: prepare
         shell: bash
+        env:
+          OVERRIDES: ${{ steps.get_ci_comments.outputs.overrides }}
+          TESTED_REPO_FORK: ${{ github.event.pull_request.head.repo.full_name }}
+          TESTED_REPO_BRANCH: ${{ github.event.pull_request.head.ref }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          
+
           pip install -r scripts/requirements.txt
-          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ github.base_ref || github.ref_name }} -r ${{ inputs.repo || github.repository }} out
+
+          cmd=(
+            python scripts/parse_matrix_config.py
+            .github/workflows/nightly-matrix-config.yaml
+            -t "${{ inputs.tag || github.run_id }}"
+            -b "${{ github.base_ref || github.ref_name }}"
+            -r "${{ inputs.repo || github.repository }}"
+          )
+
+          if [ -n "$OVERRIDES" ] && [ "$OVERRIDES" != "[]" ]; then
+            echo "Applying CI comment overrides: $OVERRIDES"
+            cmd+=(-o "$OVERRIDES")
+            if [ -n "$TESTED_REPO_FORK" ] && [ -n "$TESTED_REPO_BRANCH" ]; then
+              cmd+=(--tested-repo-head "${TESTED_REPO_FORK}:${TESTED_REPO_BRANCH}")
+            fi
+          fi
+
+          "${cmd[@]}" out
 
           # The output may be one ore more of these, we should handle the case where these are empty.
           matrix_0=$(cat out/level_0.json)
