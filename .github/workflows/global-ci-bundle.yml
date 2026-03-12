@@ -274,8 +274,7 @@ jobs:
   e2e-api-integration-tests:
     needs: check-images
     runs-on: ubuntu-22.04
-    # When triggered by pull_request, inputs are not set; only skip when explicitly false
-    if: ${{ inputs.run_api_tests != false }}
+    if: ${{ github.event_name == 'pull_request' || inputs.run_api_tests }}
     defaults:
       run:
         shell: bash
