@@ -169,7 +169,7 @@ on:
 jobs:
   e2e-api-integration-tests:
     if: ${{ inputs.run_api_tests }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-20260201
     defaults:
       run:
         shell: bash
@@ -307,7 +307,7 @@ jobs:
 
   e2e-ui-integration-tests:
     if: ${{ inputs.run_ui_tests }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-20260201
     defaults:
       run:
         shell: bash

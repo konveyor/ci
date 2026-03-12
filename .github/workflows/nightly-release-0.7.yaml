@@ -19,7 +19,7 @@ jobs:
   report_failure:
     needs: release-0_7-nightly
     if: ${{ always() && contains(needs.*.result, 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-20260201
     steps:
       - name: Send failure data to Slack workflow
         id: slack
