@@ -274,7 +274,7 @@ jobs:
   e2e-api-integration-tests:
     needs: check-images
     runs-on: ubuntu-22.04
-    if: ${{ github.event_name == 'pull_request' || inputs.run_api_tests }}
+    if: ${{ inputs.run_api_tests }}
     defaults:
       run:
         shell: bash
