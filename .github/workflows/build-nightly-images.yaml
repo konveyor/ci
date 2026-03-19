@@ -56,7 +56,7 @@ jobs:
       - name: Setup golang
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25' 
+          go-version: ${{ inputs.branch == 'release-0.9' && '1.23' || '1.25' }}
       
       - name: Apply go mod replaces
         id: go_mod_replaces
