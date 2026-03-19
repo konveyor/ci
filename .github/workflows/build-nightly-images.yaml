@@ -41,17 +41,31 @@ jobs:
         image: ${{ fromJSON(inputs.matrix-config).image }}
         os: ${{ fromJSON(inputs.matrix-config).os }}
     steps:
+      - name: Determine checkout ref
+        id: determine_ref
+        shell: bash
+        env:
+          TESTED_REPO: ${{ inputs.tested_repo }}
+          IMAGE_REPO: ${{ matrix.image.repo }}
+          OVERRIDE_REF: ${{ matrix.image.ref }}
+          BRANCH: ${{ inputs.branch }}
+          BASE_REF: ${{ github.base_ref }}
+          GH_REF: ${{ github.ref_name }}
+        run: |
+          if [ -n "$OVERRIDE_REF" ]; then
+            echo "ref=$OVERRIDE_REF" >> $GITHUB_OUTPUT
+          elif [ -z "$TESTED_REPO" ] || [ "$IMAGE_REPO" == "$TESTED_REPO" ]; then
+            echo "ref=$BRANCH" >> $GITHUB_OUTPUT
+          else
+            echo "ref=${BASE_REF:-$GH_REF}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout repo
         id: checkout
         uses: actions/checkout@v5
         with:
           repository: ${{ matrix.image.repo }}
-          # This will:
-          # Use an override ref if set for the matrix
-          # Use the branch that is passed in as input
-          # If a pr, will use the base_ref
-          # If not a pr will use the ref 
-          ref: ${{ matrix.image.ref || (matrix.image.repo == inputs.tested_repo && github.ref) || github.base_ref || github.ref_name }}
+          ref: ${{ steps.determine_ref.outputs.ref }}
       
       - name: Setup golang
         uses: actions/setup-go@v6
