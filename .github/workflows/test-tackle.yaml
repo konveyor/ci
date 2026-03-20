@@ -5,13 +5,13 @@ on:
     branches: [ main ]
     paths:
       - 'scripts/tackle.sh'
-      - '.github/workflows/tackle-smoke-test.yml'
+      - '.github/workflows/test-tackle.yml'
 
   pull_request:
     branches: [ main ]
     paths:
       - 'scripts/tackle.sh'
-      - '.github/workflows/tackle-smoke-test.yml'
+      - '.github/workflows/test-tackle.yml'
 
   workflow_dispatch:
 
