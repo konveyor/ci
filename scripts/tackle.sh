@@ -1,23 +1,6 @@
 #!/usr/bin/env bash
 #
-# tackle.sh - Convenience CLI to manage local Tackle Hub + Kind cluster
-#             for koncur testing
-#
-# Usage:
-#   ./tackle.sh install [--auth] [--port=8080] [--tlsPort=8443]
-#   ./tackle.sh uninstall
-#   ./tackle.sh help
-#
-# Image overrides:
-#   Set environment variables to use custom images (same as Makefile):
-#     HUB
-#     ANALYZER_ADDON
-#     CSHARP_PROVIDER_IMG
-#     GENERIC_PROVIDER_IMG
-#     JAVA_PROVIDER_IMG
-#     KANTRA_FQIN
-#     DISCOVERY_ADDON
-#     PLATFORM_ADDON
+# tackle.sh - Convenience CLI to manage a local Tackle installation (via Kind)
 #
 
 set -euo pipefail
@@ -36,7 +19,7 @@ kantraImage="${KANTRA_FQIN:-quay.io/konveyor/kantra:latest}"
 discoveryImage="${DISCOVERY_ADDON:-quay.io/konveyor/tackle2-addon-discovery:latest}"
 platformImage="${PLATFORM_ADDON:-quay.io/konveyor/tackle2-addon-platform:latest}"
 
-readonly defaultClusterName="koncur-test"
+readonly defaultClusterName="tackle-test"
 readonly defaultNamespace="konveyor-tackle"
 readonly defaultHostPort=8080
 readonly defaultHostPortTls=8443
@@ -69,6 +52,10 @@ step() {
 
 success() {
   printf "\n\033[1;32m✔ %s\033[0m\n" "$*"
+}
+
+info() {
+  printf "  %s\n" "$*"
 }
 
 runKubectl() {
@@ -106,17 +93,95 @@ getKeycloakPod() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Core functions – small & focused
+# Dependency installation – idempotent
+# ──────────────────────────────────────────────────────────────────────────────
+
+installDependencies() {
+  step "Checking and installing dependencies (kind, kubectl) ..."
+
+  if ! command -v kind >/dev/null 2>&1; then
+    step "Installing kind v0.25.0 ..."
+    curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.25.0/kind-linux-amd64
+    chmod +x ./kind
+    sudo mv ./kind /usr/local/bin/kind || die "Failed to install kind (sudo required?)"
+    success "kind installed"
+  else
+    info "kind is already installed ($(kind version))"
+  fi
+
+  if ! command -v kubectl >/dev/null 2>&1; then
+    step "Installing latest stable kubectl ..."
+    KUBE_REL=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+    curl -LO "https://dl.k8s.io/release/${KUBE_REL}/bin/linux/amd64/kubectl"
+    chmod +x kubectl
+    sudo mv kubectl /usr/local/bin/kubectl || die "Failed to install kubectl (sudo required?)"
+    success "kubectl installed"
+  else
+    info "kubectl is already installed ($(kubectl version --client --short))"
+  fi
+
+  command -v curl  >/dev/null 2>&1 || die "curl is required but not found"
+  command -v base64 >/dev/null 2>&1 || die "base64 is required but not found"
+
+  success "All dependencies are ready"
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Status command
+# ──────────────────────────────────────────────────────────────────────────────
+
+cmdStatus() {
+  echo ""
+  echo "=== Tackle Status ==="
+  echo ""
+
+  echo "Cluster:"
+  kind get clusters | grep -w "${clusterName}" || echo "  No cluster found"
+
+  echo ""
+  echo "Namespace:"
+  runKubectl get namespace "${namespace}" 2>/dev/null || echo "  Namespace not found"
+
+  echo ""
+  echo "Tackle CR:"
+  runKubectl get tackle -n "${namespace}" 2>/dev/null || echo "  No Tackle CR found"
+
+  echo ""
+  echo "Pods:"
+  runKubectl get pods -n "${namespace}" -o wide 2>/dev/null || echo "  No pods found"
+
+  echo ""
+  echo "Services:"
+  runKubectl get svc -n "${namespace}" 2>/dev/null || echo "  No services found"
+
+  echo ""
+  echo "Ingress:"
+  runKubectl get ingress -n "${namespace}" 2>/dev/null || echo "  No ingress found"
+
+  if runKubectl get pods -n "${namespace}" -l app.kubernetes.io/name=tackle-hub >/dev/null 2>&1; then
+    echo ""
+    echo "Recent Tackle Hub logs (last 20 lines):"
+    runKubectl logs -n "${namespace}" -l app.kubernetes.io/name=tackle-hub --tail=20 2>/dev/null || true
+  else
+    echo ""
+    echo "No tackle-hub pods running"
+  fi
+
+  success "Tackle status check complete"
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Core functions
 # ──────────────────────────────────────────────────────────────────────────────
 
 ensureDirectories() {
   mkdir -p -m 777 \
     cache \
-    .koncur/config
+    .tackle/config
 }
 
 createKindConfig() {
-  local configFile=".koncur/config/kind-config.yaml"
+  local configFile=".tackle/config/kind-config.yaml"
 
   cat > "$configFile" <<EOF
 kind: Cluster
@@ -148,7 +213,7 @@ createKindCluster() {
   createKindConfig
   kind create cluster \
     --name "${clusterName}" \
-    --config .koncur/config/kind-config.yaml
+    --config .tackle/config/kind-config.yaml
 }
 
 configureLocalPathStorage() {
@@ -292,10 +357,6 @@ waitForHubReady() {
     --timeout=30s
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Keycloak configuration – now properly decomposed
-# ──────────────────────────────────────────────────────────────────────────────
-
 waitForKeycloakDeployment() {
   waitFor 600 "Keycloak deployment" \
     runKubectl get deployment tackle-keycloak-sso \
@@ -433,17 +494,17 @@ startPortForward() {
 
   echo ""
   if $authEnabled; then
-    echo "Tackle Hub installed WITH authentication."
+    echo "Tackle installed WITH authentication."
     echo "Access UI:  https://localhost:${hostPortTls}  (self-signed cert - accept warning)"
     echo "User:       ${adminUser}"
     echo "Password:   ${adminPass}"
   else
-    echo "Tackle Hub installed (no auth)."
+    echo "Tackle installed (no auth)."
     echo "Access UI:  http://localhost:${hostPort}"
   fi
   echo ""
 
-  echo "Starting port-forward to Tackle Hub service..."
+  echo "Starting port-forward to Tackle service..."
   echo "API → http://localhost:${localPort}"
   echo "UI  → http://localhost:${localPort}/hub"
   echo ""
@@ -459,38 +520,33 @@ startPortForward() {
 # Subcommands
 # ──────────────────────────────────────────────────────────────────────────────
 
+cmdInstallDeps() {
+  installDependencies
+}
+
 cmdInstall() {
+  local installDepsFlag=false
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --auth)
-        authEnabled=true
-        shift
-        ;;
-      --no-auth)
-        authEnabled=false
-        shift
-        ;;
-      --port=*)
-        hostPort="${1#*=}"
-        shift
-        ;;
-      --tlsPort=*)
-        hostPortTls="${1#*=}"
-        shift
-        ;;
-      --cluster=*)
-        clusterName="${1#*=}"
-        shift
-        ;;
-      --help|-h)
-        cmdHelp
-        exit 0
-        ;;
-      *)
-        die "Unknown option: $1"
-        ;;
+      --install-deps) installDepsFlag=true; shift ;;
+      --auth)         authEnabled=true; shift ;;
+      --no-auth)      authEnabled=false; shift ;;
+      --port=*)       hostPort="${1#*=}"; shift ;;
+      --tlsPort=*)    hostPortTls="${1#*=}"; shift ;;
+      --cluster=*)    clusterName="${1#*=}"; shift ;;
+      --help|-h)      cmdHelp; exit 0 ;;
+      *)              die "Unknown option: $1" ;;
     esac
   done
+
+  if $installDepsFlag; then
+    installDependencies
+  fi
+
+  if ! command -v kind >/dev/null 2>&1 || ! command -v kubectl >/dev/null 2>&1; then
+    die "kind and/or kubectl not found. Run 'tackle.sh install-deps' first or use --install-deps"
+  fi
 
   ensureDirectories
 
@@ -515,9 +571,49 @@ cmdInstall() {
     configureKeycloak
   fi
 
-  success "Tackle Hub is ready!"
+  success "Tackle is ready!"
 
   startPortForward
+}
+
+cmdStatus() {
+  echo ""
+  echo "=== Tackle Status ==="
+  echo ""
+
+  echo "Cluster:"
+  kind get clusters | grep -w "${clusterName}" || echo "  No cluster found"
+
+  echo ""
+  echo "Namespace:"
+  runKubectl get namespace "${namespace}" 2>/dev/null || echo "  Namespace not found"
+
+  echo ""
+  echo "Tackle CR:"
+  runKubectl get tackle -n "${namespace}" 2>/dev/null || echo "  No Tackle CR found"
+
+  echo ""
+  echo "Pods:"
+  runKubectl get pods -n "${namespace}" -o wide 2>/dev/null || echo "  No pods found"
+
+  echo ""
+  echo "Services:"
+  runKubectl get svc -n "${namespace}" 2>/dev/null || echo "  No services found"
+
+  echo ""
+  echo "Ingress:"
+  runKubectl get ingress -n "${namespace}" 2>/dev/null || echo "  No ingress found"
+
+  if runKubectl get pods -n "${namespace}" -l app.kubernetes.io/name=tackle-hub >/dev/null 2>&1; then
+    echo ""
+    echo "Recent Tackle Hub logs (last 20 lines):"
+    runKubectl logs -n "${namespace}" -l app.kubernetes.io/name=tackle-hub --tail=20 2>/dev/null || true
+  else
+    echo ""
+    echo "No tackle-hub pods running"
+  fi
+
+  success "Tackle status check complete"
 }
 
 cmdUninstall() {
@@ -547,11 +643,14 @@ cmdHelp() {
 Usage: $(basename "$0") <command> [options]
 
 Commands:
-  install     Create kind cluster + install Tackle Hub + start port-forward
-  uninstall   Remove Tackle and delete kind cluster
-  help        Show this help
+  install-deps   Install or verify required tools (kind, kubectl) – safe to run multiple times
+  install        Create kind cluster + install Tackle + start port-forward
+  status         Show current status of cluster, namespace, pods, CR, etc.
+  uninstall      Remove Tackle and delete kind cluster
+  help           Show this help
 
 Install options:
+  --install-deps      Automatically install missing dependencies before proceeding
   --auth              Enable Keycloak authentication
   --no-auth           Disable authentication (default)
   --port=8080         Host port for HTTP ingress
@@ -560,14 +659,8 @@ Install options:
 
 Image overrides:
   Set these env vars to use custom images (same names as Makefile):
-    HUB
-    ANALYZER_ADDON
-    CSHARP_PROVIDER_IMG
-    GENERIC_PROVIDER_IMG
-    JAVA_PROVIDER_IMG
-    KANTRA_FQIN
-    DISCOVERY_ADDON
-    PLATFORM_ADDON
+    HUB ANALYZER_ADDON CSHARP_PROVIDER_IMG GENERIC_PROVIDER_IMG
+    JAVA_PROVIDER_IMG KANTRA_FQIN DISCOVERY_ADDON PLATFORM_ADDON
 
 EOF
 }
@@ -582,17 +675,11 @@ if [[ $# -eq 0 ]]; then
 fi
 
 case "$1" in
-  install)
-    shift
-    cmdInstall "$@"
-    ;;
-  uninstall)
-    shift
-    cmdUninstall "$@"
-    ;;
-  help|--help|-h)
-    cmdHelp
-    ;;
+  install-deps) installDependencies ;;
+  install) shift; cmdInstall "$@" ;;
+  status) cmdStatus ;;
+  uninstall) shift; cmdUninstall "$@" ;;
+  help|--help|-h) cmdHelp ;;
   *)
     die "Unknown command: $1. Run '$(basename "$0") help' for usage."
     ;;
