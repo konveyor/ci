@@ -525,7 +525,7 @@ getTags() {
 
     response=$(curl -s -o /dev/stderr -w "%{http_code}" \
                -H "Accept: application/x-yaml" \
-               "http://localhost:8081/hub/tags") || {
+               "http://localhost:${hostPort}/hub/tags") || {
         echo ""
         echo "curl failed"
         return 1
