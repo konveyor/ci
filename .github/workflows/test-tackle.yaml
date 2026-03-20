@@ -1,9 +1,8 @@
 name: Tackle Setup + Status + Teardown
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_dispatch:
+  push:
+    branches-ignore: [main]
 
 jobs:
   build-images:
