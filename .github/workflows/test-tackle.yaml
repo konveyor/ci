@@ -3,7 +3,7 @@ name: Tackle Setup + Status + Teardown
 on:
   push:
     branches-ignore: [main]
-
+  workflow_dispatch:
 jobs:
   build-images:
     uses: jortel/tackle2-hub/.github/workflows/main.yml@056702a8b3ab4b4d3f9bf0067920c0febb5520e6
