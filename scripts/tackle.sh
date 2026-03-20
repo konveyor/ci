@@ -520,7 +520,7 @@ getTags() {
     echo "───────────────────────"
 
     # Capture HTTP status and response body separately
-    local http_status
+    local httpCode
     local response
 
     response=$(curl -s -o /dev/stderr -w "%{http_code}" \
@@ -531,11 +531,11 @@ getTags() {
         return 1
     }
 
-    http_status="${response##* }"          # last line = http code
-    response="${response%$http_status}"    # everything before http code = body
+    httpCode="${response##* }"          # last line = http code
+    response="${response%$httpCode}"    # everything before http code = body
 
-    if [ "$http_status" -ne 200 ]; then
-	"GET failed code=${http_status}"
+    if [ "$httpCode" -ne 200 ]; then
+	"GET failed code=${httpCode}"
         return 1
     fi
 
@@ -642,7 +642,7 @@ cmdStatus() {
   fi
 
   # Get seeded tags.
-  Tags
+  getTags
 
   success "Tackle status check complete"
 }
