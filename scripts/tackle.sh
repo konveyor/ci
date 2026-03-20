@@ -19,11 +19,6 @@ kantraImage="${KANTRA_FQIN:-quay.io/konveyor/kantra:latest}"
 discoveryImage="${DISCOVERY_ADDON:-quay.io/konveyor/tackle2-addon-discovery:latest}"
 platformImage="${PLATFORM_ADDON:-quay.io/konveyor/tackle2-addon-platform:latest}"
 
-readonly defaultClusterName="tackle-test"
-readonly defaultNamespace="konveyor-tackle"
-readonly defaultHostPort=8080
-readonly defaultHostPortTls=8443
-
 readonly adminUser="admin"
 readonly adminPass="Passw0rd!"
 
@@ -31,14 +26,14 @@ readonly adminPass="Passw0rd!"
 # Globals
 # ──────────────────────────────────────────────────────────────────────────────
 
-clusterName="$defaultClusterName"
-namespace="$defaultNamespace"
-hostPort="$defaultHostPort"
-hostPortTls="$defaultHostPortTls"
+clusterName="tackle-test"
+namespace="konveyor-tackle"
+hostPort=8080
+hostPortTls=8443
 authEnabled=false
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Helpers
+# Common
 # ──────────────────────────────────────────────────────────────────────────────
 
 die() {
@@ -553,16 +548,9 @@ testHubApi() {
 # Subcommands
 # ──────────────────────────────────────────────────────────────────────────────
 
-cmdInstallDeps() {
-  installDependencies
-}
-
 cmdInstall() {
-  local installDepsFlag=false
-
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --install-deps) installDepsFlag=true; shift ;;
       --auth)         authEnabled=true; shift ;;
       --no-auth)      authEnabled=false; shift ;;
       --port=*)       hostPort="${1#*=}"; shift ;;
@@ -573,13 +561,7 @@ cmdInstall() {
     esac
   done
 
-  if $installDepsFlag; then
-    installDependencies
-  fi
-
-  if ! command -v kind >/dev/null 2>&1 || ! command -v kubectl >/dev/null 2>&1; then
-    die "kind and/or kubectl not found. Run 'tackle.sh install-deps' first or use --install-deps"
-  fi
+  installDependencies
 
   ensureDirectories
 
@@ -679,19 +661,17 @@ cmdHelp() {
 Usage: $(basename "$0") <command> [options]
 
 Commands:
-  install-deps   Install or verify required tools (kind, kubectl) – safe to run multiple times
   install        Create kind cluster + install Tackle + start port-forward
   status         Show current status of cluster, namespace, pods, CR, etc.
   uninstall      Remove Tackle and delete kind cluster
   help           Show this help
 
 Install options:
-  --install-deps      Automatically install missing dependencies before proceeding
   --auth              Enable Keycloak authentication
   --no-auth           Disable authentication (default)
   --port=8080         Host port for HTTP ingress
   --tlsPort=8443      Host port for HTTPS ingress
-  --cluster=NAME      Kind cluster name (default: ${defaultClusterName})
+  --cluster=NAME      Kind cluster name (default: ${clusterName})
 
 Image overrides:
   Set these env vars to use custom images (same names as Makefile):
@@ -711,7 +691,6 @@ if [[ $# -eq 0 ]]; then
 fi
 
 case "$1" in
-  install-deps) installDependencies ;;
   install) shift; cmdInstall "$@" ;;
   status) cmdStatus ;;
   uninstall) shift; cmdUninstall "$@" ;;
