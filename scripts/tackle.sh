@@ -507,13 +507,11 @@ startPortForward() {
   echo "Starting port-forward to Tackle service..."
   echo "API → http://localhost:${localPort}"
   echo "UI  → http://localhost:${localPort}/hub"
-  echo ""
-  echo "Press Ctrl+C to stop"
 
   runKubectl port-forward \
     -n "${namespace}" \
     svc/tackle-hub \
-    "${localPort}:${svcPort}"
+    "${localPort}:${svcPort}" &
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
