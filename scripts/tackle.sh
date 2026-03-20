@@ -516,8 +516,12 @@ startPortForward() {
 
 getTags() {
     echo ""
-    echo "GET Seeded tags (YAML):"
+    echo "GET Hub schema (YAML):"
     echo "───────────────────────"
+
+    local URL="http://localhost:${hostPort}/hub/schema"
+
+    sleep 10 
 
     # Capture HTTP status and response body separately
     local httpCode
@@ -525,7 +529,7 @@ getTags() {
 
     response=$(curl -s -o /dev/stderr -w "%{http_code}" \
                -H "Accept: application/x-yaml" \
-               "http://localhost:${hostPort}/hub/tags") || {
+               "${URL}") || {
         echo ""
         echo "curl failed"
         return 1
