@@ -505,8 +505,8 @@ startPortForward() {
   echo ""
 
   echo "Starting port-forward to Tackle service..."
-  echo "API → http://localhost:${localPort}"
-  echo "UI  → http://localhost:${localPort}/hub"
+  echo "API → http://localhost:${localPort}/hub"
+  echo "UI  → http://localhost:${localPort}"
 
   runKubectl port-forward \
     -n "${namespace}" \
@@ -525,7 +525,7 @@ getTags() {
 
     response=$(curl -s -o /dev/stderr -w "%{http_code}" \
                -H "Accept: application/x-yaml" \
-               "http://localhost:${localPort}/hub/tags") || {
+               "http://localhost:8081/hub/tags") || {
         echo ""
         echo "curl failed"
         return 1
