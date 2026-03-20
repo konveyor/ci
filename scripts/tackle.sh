@@ -160,7 +160,7 @@ cmdStatus() {
 
   if runKubectl get pods -n "${namespace}" -l app.kubernetes.io/name=tackle-hub >/dev/null 2>&1; then
     echo ""
-    echo "Recent Tackle Hub logs (last 20 lines):"
+    echo "Recent Hub logs (last 20 lines):"
     runKubectl logs -n "${namespace}" -l app.kubernetes.io/name=tackle-hub --tail=20 2>/dev/null || true
   else
     echo ""
@@ -348,7 +348,7 @@ EOF
 }
 
 waitForHubReady() {
-  waitFor 900 "Tackle Hub pod" \
+  waitFor 900 "Hub pod" \
     runKubectl wait \
     --namespace "${namespace}" \
     --for=condition=ready \
@@ -419,7 +419,7 @@ configureKeycloakHostname() {
 }
 
 disableHubPasswordUpdate() {
-  step "Disabling password update prompt on Tackle Hub ..."
+  step "Disabling password update prompt on Hub ..."
 
   runKubectl set env deployment/tackle-hub \
     -n "${namespace}" \
@@ -514,6 +514,36 @@ startPortForward() {
     "${localPort}:${svcPort}" &
 }
 
+getTags() {
+    echo ""
+    echo "GET Seeded tags (YAML):"
+    echo "───────────────────────"
+
+    # Capture HTTP status and response body separately
+    local http_status
+    local response
+
+    response=$(curl -s -o /dev/stderr -w "%{http_code}" \
+               -H "Accept: application/x-yaml" \
+               "http://localhost:${localPort}/hub/tags") || {
+        echo ""
+        echo "curl failed"
+        return 1
+    }
+
+    http_status="${response##* }"          # last line = http code
+    response="${response%$http_status}"    # everything before http code = body
+
+    if [ "$http_status" -ne 200 ]; then
+	"GET failed code=${http_status}"
+        return 1
+    fi
+
+    # Success path: pretty-print the response
+    echo "$response" | yq .
+    echo "───────────────────────"
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Subcommands
 # ──────────────────────────────────────────────────────────────────────────────
@@ -604,12 +634,15 @@ cmdStatus() {
 
   if runKubectl get pods -n "${namespace}" -l app.kubernetes.io/name=tackle-hub >/dev/null 2>&1; then
     echo ""
-    echo "Recent Tackle Hub logs (last 20 lines):"
+    echo "Recent Hub logs (last 20 lines):"
     runKubectl logs -n "${namespace}" -l app.kubernetes.io/name=tackle-hub --tail=20 2>/dev/null || true
   else
     echo ""
     echo "No tackle-hub pods running"
   fi
+
+  # Get seeded tags.
+  Tags
 
   success "Tackle status check complete"
 }
