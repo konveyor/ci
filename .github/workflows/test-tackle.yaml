@@ -9,7 +9,7 @@ on:
 jobs:
 
   build-images:
-    uses: ./.github/workflows/e2e-image-build.yaml
+    uses: konveyor/ci/.github/workflows/e2e-image-build.yaml
     with:
       repo: ${{ github.repository }}
       ref: main
