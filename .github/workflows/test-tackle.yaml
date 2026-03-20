@@ -1,17 +1,7 @@
 name: Tackle Setup + Status + Teardown
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'scripts/tackle.sh'
-      - '.github/workflows/test-tackle.yaml'
-
   pull_request:
-    branches: [ main ]
-    paths:
-      - 'scripts/tackle.sh'
-      - '.github/workflows/test-tackle.yaml'
 
   workflow_dispatch:
 
