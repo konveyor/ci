@@ -106,7 +106,7 @@ getKeycloakPod() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Core functions
+# Core functions – small & focused
 # ──────────────────────────────────────────────────────────────────────────────
 
 ensureDirectories() {
@@ -144,14 +144,14 @@ nodes:
 EOF
 }
 
-installCluster() {
-  step "Creating Kind cluster '${clusterName}' ..."
+createKindCluster() {
   createKindConfig
-
   kind create cluster \
     --name "${clusterName}" \
     --config .koncur/config/kind-config.yaml
+}
 
+configureLocalPathStorage() {
   step "Patching local-path-storage to use /cache ..."
 
   runKubectl patch configmap local-path-config \
@@ -168,7 +168,9 @@ EOF
   runKubectl rollout status deployment local-path-provisioner \
     -n local-path-storage \
     --timeout=60s
+}
 
+installIngressNginx() {
   step "Installing ingress-nginx ..."
   runKubectl apply \
     -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.2/deploy/static/provider/kind/deploy.yaml
@@ -180,6 +182,13 @@ EOF
     pod \
     --selector=app.kubernetes.io/component=controller \
     --timeout=10s
+}
+
+installCluster() {
+  step "Creating Kind cluster '${clusterName}' ..."
+  createKindCluster
+  configureLocalPathStorage
+  installIngressNginx
 }
 
 installOlm() {
@@ -273,13 +282,27 @@ spec:
 EOF
 }
 
-configureKeycloak() {
-  step "Waiting for Keycloak deployment to appear ..."
+waitForHubReady() {
+  waitFor 900 "Tackle Hub pod" \
+    runKubectl wait \
+    --namespace "${namespace}" \
+    --for=condition=ready \
+    pod \
+    -l app.kubernetes.io/name=tackle-hub \
+    --timeout=30s
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Keycloak configuration – now properly decomposed
+# ──────────────────────────────────────────────────────────────────────────────
+
+waitForKeycloakDeployment() {
   waitFor 600 "Keycloak deployment" \
     runKubectl get deployment tackle-keycloak-sso \
     -n "${namespace}"
+}
 
-  step "Waiting for Keycloak pod to be ready ..."
+waitForKeycloakPod() {
   waitFor 600 "Keycloak pod" \
     runKubectl wait \
     --namespace "${namespace}" \
@@ -287,7 +310,9 @@ configureKeycloak() {
     pod \
     -l app.kubernetes.io/name=tackle-keycloak-sso \
     --timeout=30s
+}
 
+applyKeycloakNetworkPolicy() {
   step "Creating NetworkPolicy to allow ingress-nginx → Keycloak ..."
   cat <<EOF | runKubectl apply -f -
 apiVersion: networking.k8s.io/v1
@@ -312,8 +337,11 @@ spec:
         - port: 8443
           protocol: TCP
 EOF
+}
 
+configureKeycloakHostname() {
   step "Configuring Keycloak hostname for local access ..."
+
   runKubectl set env deployment/tackle-keycloak-sso \
     -n "${namespace}" \
     KC_HOSTNAME="https://localhost:${hostPortTls}/auth" \
@@ -327,8 +355,11 @@ EOF
   runKubectl rollout status deployment/tackle-keycloak-sso \
     -n "${namespace}" \
     --timeout=180s
+}
 
+disableHubPasswordUpdate() {
   step "Disabling password update prompt on Tackle Hub ..."
+
   runKubectl set env deployment/tackle-hub \
     -n "${namespace}" \
     KEYCLOAK_REQ_PASS_UPDATE=false
@@ -336,8 +367,11 @@ EOF
   runKubectl rollout status deployment/tackle-hub \
     -n "${namespace}" \
     --timeout=120s
+}
 
+configureAdminUserInKeycloak() {
   step "Configuring admin user in Keycloak ..."
+
   local kcPod
   kcPod=$(getKeycloakPod)
 
@@ -381,18 +415,16 @@ EOF
     -- /opt/keycloak/bin/kcadm.sh update "users/${adminUserId}" \
     -r tackle \
     -s 'requiredActions=[]'
-
-  success "Keycloak configured. Admin user ready (user: ${adminUser}, pass: ${adminPass})"
 }
 
-waitForHubReady() {
-  waitFor 900 "Tackle Hub pod" \
-    runKubectl wait \
-    --namespace "${namespace}" \
-    --for=condition=ready \
-    pod \
-    -l app.kubernetes.io/name=tackle-hub \
-    --timeout=30s
+configureKeycloak() {
+  waitForKeycloakDeployment
+  waitForKeycloakPod
+  applyKeycloakNetworkPolicy
+  configureKeycloakHostname
+  disableHubPasswordUpdate
+  configureAdminUserInKeycloak
+  success "Keycloak configured. Admin user ready (user: ${adminUser}, pass: ${adminPass})"
 }
 
 startPortForward() {
@@ -461,6 +493,17 @@ cmdInstall() {
   done
 
   ensureDirectories
+
+  step "Resolved images:"
+  echo "  Hub         : ${hubImage}"
+  echo "  Analyzer    : ${analyzerImage}"
+  echo "  C# Provider : ${csharpProvider}"
+  echo "  Generic     : ${genericProvider}"
+  echo "  Java        : ${javaProvider}"
+  echo "  Kantra      : ${kantraImage}"
+  echo "  Discovery   : ${discoveryImage}"
+  echo "  Platform    : ${platformImage}"
+
   installCluster
   installOlm
   installTackleOperator
