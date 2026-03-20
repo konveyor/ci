@@ -32,9 +32,6 @@ jobs:
       - name: Make tackle.sh executable
         run: chmod +x scripts/tackle.sh
 
-      - name: Install dependencies
-        run: scripts/tackle.sh install-deps
-
       - name: Install Tackle (${{ matrix.auth && 'with auth' || 'without auth' }})
 
         run: |
