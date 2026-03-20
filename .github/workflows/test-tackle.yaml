@@ -3,10 +3,16 @@ name: Tackle Setup + Status + Teardown
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+
   workflow_dispatch:
+
 jobs:
+
   build-images:
-    uses: jortel/tackle2-hub/.github/workflows/main.yml@056702a8b3ab4b4d3f9bf0067920c0febb5520e6
+    uses: ./.github/workflows/e2e-image-build.yaml
+    with:
+      repo: ${{ github.repository }}
+      ref: main
     secrets: inherit
 
   test-tackle:
@@ -30,11 +36,7 @@ jobs:
         run: scripts/tackle.sh install-deps
 
       - name: Install Tackle (${{ matrix.auth && 'with auth' || 'without auth' }})
-        env:
-          # Adjust based on actual outputs / tag pattern from build-images job
-          HUB: ${{ needs.build-images.outputs.hub-image || format('quay.io/konveyor/tackle2-hub:pr-{0}-{1}', github.event.number || github.sha, github.sha) }}
-          ANALYZER_ADDON: ${{ needs.build-images.outputs.analyzer-image || format('quay.io/konveyor/tackle2-addon-analyzer:pr-{0}-{1}', github.event.number || github.sha, github.sha) }}
-          # add more if needed
+
         run: |
           if [ "${{ matrix.auth }}" = "true" ]; then
             scripts/tackle.sh install --auth
