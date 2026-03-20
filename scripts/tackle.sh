@@ -507,45 +507,46 @@ startPortForward() {
   echo "Starting port-forward to Tackle service..."
   echo "API → http://localhost:${localPort}/hub"
   echo "UI  → http://localhost:${localPort}"
-
-  runKubectl port-forward \
-    -n "${namespace}" \
-    svc/tackle-hub \
-    "${localPort}:${svcPort}" &
 }
 
-getTags() {
+testHubApi() {
+    local url="http://localhost:${hostPort}/hub/schema"
+    local maxAttempts=10
+    local attempt=1
+    local delay=6  # ~1 min total
+
     echo ""
-    echo "GET Hub schema (YAML):"
+    echo "Get hub schema (YAML): $url"
     echo "───────────────────────"
 
-    local URL="http://localhost:${hostPort}/hub/schema"
+    while (( attempt <= maxAttempts )); do
+        echo "Attempt $attempt/$maxAttempts..."
 
-    sleep 10 
+        local http_code response
+        response=$(curl -s -w "%{http_code}" -o >(cat) \
+                   -H "Accept: application/x-yaml" "$url") || {
+            echo "curl failed (connection refused?)"
+            sleep $delay
+            ((attempt++))
+            continue
+        }
 
-    # Capture HTTP status and response body separately
-    local httpCode
-    local response
+        http_code=${response: -3}  # last 3 chars = code
+        body=${response%???}       # body without code
 
-    response=$(curl -s -o /dev/stderr -w "%{http_code}" \
-               -H "Accept: application/x-yaml" \
-               "${URL}") || {
-        echo ""
-        echo "curl failed"
-        return 1
-    }
+        if (( http_code == 200 )); then
+            echo "$body" | yq .
+            echo "───────────────────────"
+            return 0
+        else
+            echo "HTTP $http_code"
+            sleep $delay
+            ((attempt++))
+        fi
+    done
 
-    httpCode="${response##* }"          # last line = http code
-    response="${response%$httpCode}"    # everything before http code = body
-
-    if [ "$httpCode" -ne 200 ]; then
-	"GET failed code=${httpCode}"
-        return 1
-    fi
-
-    # Success path: pretty-print the response
-    echo "$response" | yq .
-    echo "───────────────────────"
+    echo "❌ Failed after $maxAttempts attempts (HTTP $http_code last)."
+    return 1
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -645,8 +646,8 @@ cmdStatus() {
     echo "No tackle-hub pods running"
   fi
 
-  # Get seeded tags.
-  getTags
+  # Test the hub API.
+  testHubApi
 
   success "Tackle status check complete"
 }
