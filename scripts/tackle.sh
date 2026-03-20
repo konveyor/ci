@@ -15,7 +15,6 @@ analyzerImage="${ANALYZER_ADDON:-quay.io/konveyor/tackle2-addon-analyzer:latest}
 csharpProvider="${CSHARP_PROVIDER_IMG:-quay.io/konveyor/c-sharp-provider:latest}"
 genericProvider="${GENERIC_PROVIDER_IMG:-quay.io/konveyor/generic-external-provider:latest}"
 javaProvider="${JAVA_PROVIDER_IMG:-quay.io/konveyor/java-external-provider:latest}"
-kantraImage="${KANTRA_FQIN:-quay.io/konveyor/kantra:latest}"
 discoveryImage="${DISCOVERY_ADDON:-quay.io/konveyor/tackle2-addon-discovery:latest}"
 platformImage="${PLATFORM_ADDON:-quay.io/konveyor/tackle2-addon-platform:latest}"
 
@@ -335,7 +334,6 @@ spec:
   provider_python_image_fqin: ${genericProvider}
   provider_nodejs_image_fqin: ${genericProvider}
   provider_java_image_fqin: ${javaProvider}
-  kantra_fqin: ${kantraImage}
   language_discovery_fqin: ${discoveryImage}
   platform_fqin: ${platformImage}
   feature_auth_required: "${authValue}"
@@ -571,7 +569,6 @@ cmdInstall() {
   echo "  C# Provider : ${csharpProvider}"
   echo "  Generic     : ${genericProvider}"
   echo "  Java        : ${javaProvider}"
-  echo "  Kantra      : ${kantraImage}"
   echo "  Discovery   : ${discoveryImage}"
   echo "  Platform    : ${platformImage}"
 
