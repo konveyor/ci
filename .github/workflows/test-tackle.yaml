@@ -1,0 +1,52 @@
+name: Tackle Setup + Status + Teardown
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'scripts/tackle.sh'
+      - '.github/actions/setup-tackle/action.yaml'
+      - '.github/workflows/test-tackle.yaml'
+
+  workflow_dispatch:
+
+jobs:
+
+  build-images:
+    uses: konveyor/ci/.github/workflows/e2e-image-build.yaml@main
+    with:
+      repo: ${{ github.repository }}
+      ref: main
+    secrets: inherit
+
+  test-tackle:
+    needs: build-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    strategy:
+      matrix:
+        auth: [false, true]
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Tackle (${{ matrix.auth && 'with auth' || 'without auth' }})
+        uses: ./.github/actions/setup-tackle
+        with:
+          command: install
+          auth: ${{ matrix.auth }}
+
+      - name: Show Tackle status
+        uses: ./.github/actions/setup-tackle
+        with:
+          command: status
+
+      - name: Teardown Tackle
+        if: always()
+        uses: ./.github/actions/setup-tackle
+        with:
+          command: uninstall
+
