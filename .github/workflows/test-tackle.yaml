@@ -29,24 +29,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Make tackle.sh executable
-        run: chmod +x scripts/tackle.sh
-
       - name: Install Tackle (${{ matrix.auth && 'with auth' || 'without auth' }})
-
-        run: |
-          if [ "${{ matrix.auth }}" = "true" ]; then
-            scripts/tackle.sh install --auth
-          else
-            scripts/tackle.sh install --no-auth
-          fi
+        uses: ./.github/actions/setup-tackle
+        with:
+          command: install
+          auth: ${{ matrix.auth }}
 
       - name: Show Tackle status
-        run: scripts/tackle.sh status
+        uses: ./.github/actions/setup-tackle
+        with:
+          command: status
 
       - name: Teardown Tackle
         if: always()
-        run: |
-          scripts/tackle.sh uninstall || true
-          kind delete cluster --name tackle-test || true
+        uses: ./.github/actions/setup-tackle
+        with:
+          command: uninstall
 

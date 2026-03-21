@@ -549,8 +549,7 @@ testHubApi() {
 cmdInstall() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --auth)         authEnabled=true; shift ;;
-      --no-auth)      authEnabled=false; shift ;;
+      --auth=*)       authEnabled="${1#*=}"; shift ;;
       --port=*)       hostPort="${1#*=}"; shift ;;
       --tlsPort=*)    hostPortTls="${1#*=}"; shift ;;
       --cluster=*)    clusterName="${1#*=}"; shift ;;
@@ -664,8 +663,7 @@ Commands:
   help           Show this help
 
 Install options:
-  --auth              Enable Keycloak authentication
-  --no-auth           Disable authentication (default)
+  --auth=true|false   Enable/disable Keycloak authentication (default: false)
   --port=8080         Host port for HTTP ingress
   --tlsPort=8443      Host port for HTTPS ingress
   --cluster=NAME      Kind cluster name (default: ${clusterName})

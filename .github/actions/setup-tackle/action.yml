@@ -1,0 +1,87 @@
+name: 'Setup Tackle'
+description: 'Install and configure Tackle on a Kind cluster'
+author: 'Konveyor'
+
+inputs:
+  command:
+    description: 'Command to run (install, status, uninstall)'
+    required: true
+    default: 'install'
+
+  auth:
+    description: 'Enable Keycloak authentication'
+    required: false
+    default: 'false'
+
+  port:
+    description: 'Host port for HTTP ingress'
+    required: false
+    default: '8080'
+
+  tls-port:
+    description: 'Host port for HTTPS ingress'
+    required: false
+    default: '8443'
+
+  cluster-name:
+    description: 'Kind cluster name'
+    required: false
+    default: 'tackle-test'
+
+  # Image overrides
+  hub-image:
+    description: 'Hub image (HUB env var)'
+    required: false
+
+  analyzer-image:
+    description: 'Analyzer addon image (ANALYZER_ADDON env var)'
+    required: false
+
+  csharp-provider-image:
+    description: 'C# provider image (CSHARP_PROVIDER_IMG env var)'
+    required: false
+
+  generic-provider-image:
+    description: 'Generic provider image (GENERIC_PROVIDER_IMG env var)'
+    required: false
+
+  java-provider-image:
+    description: 'Java provider image (JAVA_PROVIDER_IMG env var)'
+    required: false
+
+  discovery-image:
+    description: 'Discovery addon image (DISCOVERY_ADDON env var)'
+    required: false
+
+  platform-image:
+    description: 'Platform addon image (PLATFORM_ADDON env var)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Make tackle.sh executable
+      shell: bash
+      run: chmod +x ${{ github.action_path }}/../../../scripts/tackle.sh
+
+    - name: Run tackle.sh ${{ inputs.command }}
+      shell: bash
+      env:
+        HUB: ${{ inputs.hub-image }}
+        ANALYZER_ADDON: ${{ inputs.analyzer-image }}
+        CSHARP_PROVIDER_IMG: ${{ inputs.csharp-provider-image }}
+        GENERIC_PROVIDER_IMG: ${{ inputs.generic-provider-image }}
+        JAVA_PROVIDER_IMG: ${{ inputs.java-provider-image }}
+        DISCOVERY_ADDON: ${{ inputs.discovery-image }}
+        PLATFORM_ADDON: ${{ inputs.platform-image }}
+      run: |
+        args=""
+
+        if [ "${{ inputs.command }}" = "install" ]; then
+          args="$args --auth=${{ inputs.auth }}"
+          args="$args --port=${{ inputs.port }}"
+          args="$args --tlsPort=${{ inputs.tls-port }}"
+          args="$args --cluster=${{ inputs.cluster-name }}"
+        fi
+
+        ${{ github.action_path }}/../../../scripts/tackle.sh ${{ inputs.command }} $args
