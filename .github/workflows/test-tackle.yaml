@@ -3,6 +3,10 @@ name: Tackle Setup + Status + Teardown
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'scripts/tackle.sh'
+      - '.github/actions/setup-tackle/action.yml'
+      - '.github/workflows/test-tackle.yaml'
 
   workflow_dispatch:
 
