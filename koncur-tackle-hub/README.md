@@ -182,7 +182,9 @@ If `image_pattern` is provided:
    - `PLATFORM_ADDON` - Platform addon image
    - `JAVA_PROVIDER_IMG` - Java provider image
    - `CSHARP_PROVIDER_IMG` - C# provider image
-   - `GENERIC_PROVIDER_IMG` - Generic provider image
+   - `GO_PROVIDER_IMG` - Go provider image
+   - `PYTHON_PROVIDER_IMG` - Python provider image
+   - `NODEJS_PROVIDER_IMG` - Node.js provider image
 
 If image download fails or no pattern is provided:
 - Falls back to `check_images.sh` which downloads from the last successful nightly build
@@ -261,7 +263,9 @@ These environment variables are available to the Hub installation and subsequent
 | `PLATFORM_ADDON` | Platform addon image | `quay.io/konveyor/tackle2-addon-platform:latest` |
 | `JAVA_PROVIDER_IMG` | Java provider image | `quay.io/konveyor/java-external-provider:latest` |
 | `CSHARP_PROVIDER_IMG` | C# provider image | `quay.io/konveyor/c-sharp-provider:latest` |
-| `GENERIC_PROVIDER_IMG` | Generic provider image | `quay.io/konveyor/generic-external-provider:latest` |
+| `GO_PROVIDER_IMG` | Go provider image | `quay.io/konveyor/go-external-provider:latest` |
+| `PYTHON_PROVIDER_IMG` | Python provider image | `quay.io/konveyor/python-external-provider:latest` |
+| `NODEJS_PROVIDER_IMG` | Node.js provider image | `quay.io/konveyor/nodejs-external-provider:latest` |
 | `KIND_GATEWAY` | Kind cluster gateway IP | `172.18.0.1` |
 
 ## Troubleshooting

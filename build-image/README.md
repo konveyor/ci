@@ -305,12 +305,28 @@ jobs:
           image_tag: ${{ github.sha }}
           base_image: quay.io_konveyor_analyzer-lsp--${{ github.sha }}
 
-      - name: Build generic-external-provider
+      - name: Build go-external-provider
         uses: konveyor/ci/build-image@main
         with:
-          repo: konveyor/generic-external-provider
+          repo: konveyor/go-external-provider
           ref: main
-          image_name: quay.io/konveyor/generic-external-provider
+          image_name: quay.io/konveyor/go-external-provider
+          image_tag: ${{ github.sha }}
+
+      - name: Build python-external-provider
+        uses: konveyor/ci/build-image@main
+        with:
+          repo: konveyor/python-external-provider
+          ref: main
+          image_name: quay.io/konveyor/python-external-provider
+          image_tag: ${{ github.sha }}
+
+      - name: Build nodejs-external-provider
+        uses: konveyor/ci/build-image@main
+        with:
+          repo: konveyor/nodejs-external-provider
+          ref: main
+          image_name: quay.io/konveyor/nodejs-external-provider
           image_tag: ${{ github.sha }}
 ```
 
