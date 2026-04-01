@@ -51,14 +51,11 @@ jobs:
       matrix_2: ${{ steps.prepare.outputs.matrix_2 }}
       matrix_3: ${{ steps.prepare.outputs.matrix_3 }}
     steps:
-      ## For now, just using main, but in the future we probably want this to
-      # use the same ref that the workflow is being called at. I don't know 
-      # how to get that information right now
       - name: Checkout ci repo
         uses: actions/checkout@v5
         with:
           repository: konveyor/ci
-          ref: 'main'
+          ref: ${{ github.ref }}
 
       - name: Setup Python
         uses: actions/setup-python@v6
