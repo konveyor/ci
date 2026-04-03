@@ -208,7 +208,7 @@ jobs:
           payload: |
             {
               "test": "Koncur",
-              "branch": "main",
+              "branch": "${{ inputs.branch || 'main' }}",
               "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
         env:
