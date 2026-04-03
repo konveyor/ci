@@ -12,7 +12,7 @@ on:
           "release-0.8".
         required: false
         type: string
-        default: main
+        default: release-0.9
   workflow_dispatch:
     inputs:
       branch:
@@ -22,7 +22,7 @@ on:
           "release-0.8".
         required: false
         type: string
-        default: main 
+        default: release-0.9
 
 jobs:
   nightly-tag:
@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           date=$(date +'%Y.%m.%d')
-          echo "tag=${{ inputs.branch || 'main' }}_$date" >> $GITHUB_OUTPUT
+          echo "tag=${{ inputs.branch || 'release-0.9' }}_$date" >> $GITHUB_OUTPUT
 
   prepare-matrix:
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
         run: |
           
           pip install -r scripts/requirements.txt
-          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ needs.nightly-tag.outputs.tag }} -b ${{ inputs.branch || 'main' }} out
+          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ needs.nightly-tag.outputs.tag }} -b ${{ inputs.branch || 'release-0.9' }} out
           matrix_0=$(cat out/level_0.json)
           matrix_1=$(cat out/level_1.json)
           matrix_2=$(cat out/level_2.json)
