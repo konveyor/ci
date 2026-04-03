@@ -178,7 +178,6 @@ jobs:
 
   report_failure:
     needs:
-    - run-koncur-tackle-hub-action
     - run-koncur-kantra-action
     if: ${{ always() && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
