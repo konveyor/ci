@@ -175,4 +175,26 @@ jobs:
           image_pattern: |
             *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
           ref: ${{ inputs.branch || 'release-0.9' }}
+
+  report_failure:
+    needs:
+    - run-koncur-tackle-hub-action
+    - run-koncur-kantra-action
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure data to Slack workflow
+        id: slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "test": "Koncur",
+              "branch": "${{ inputs.branch || 'release-0.9' }}",
+              "note": "Failed run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+
   
