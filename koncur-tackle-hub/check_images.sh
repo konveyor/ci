@@ -9,7 +9,9 @@ REQUIRED_IMAGES=(
     "quay.io/konveyor/tackle2-addon-platform"
     "quay.io/konveyor/c-sharp-provider"
     "quay.io/konveyor/java-external-provider"
-    "quay.io/konveyor/generic-external-provider"
+    "quay.io/konveyor/go-external-provider"
+    "quay.io/konveyor/python-external-provider"
+    "quay.io/konveyor/nodejs-external-provider"
 )
 hub_regex=".*tackle2-hub.*"
 addon_regex=".*tackle2-addon-analyzer.*"
@@ -18,7 +20,9 @@ addon_platform=".*tackle2-addon-platform.*"
 kantra_image_regex=".*kantra.*"
 java_provider_image_regex=".*java(-external)?-provider.*"
 c_sharp_provider_image_regex=".*c-sharp-provider.*"
-generic_provider_image_regex=".*generic(-external)?-provider.*"
+go_provider_image_regex=".*go(-external)?-provider.*"
+python_provider_image_regex=".*python(-external)?-provider.*"
+nodejs_provider_image_regex=".*nodejs(-external)?-provider.*"
 
 echo "Checking for required images in Kind cluster..."
 echo "------------------------------------------------------------"
@@ -189,9 +193,17 @@ if [ ${#MISSING[@]} -gt 0 ]; then
             echo "C Sharp Provider Found Set Env Var: CSHARP_PROVIDER_IMG=$NEW_TAG"
             echo "CSHARP_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
         fi
-        if [[ "$image" =~ $generic_provider_image_regex ]]; then
-            echo "Generic Provider Image Found Set Env Var: GENERIC_PROVIDER_IMG=$NEW_TAG"
-            echo "GENERIC_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        if [[ "$image" =~ $go_provider_image_regex ]]; then
+            echo "Go Provider Image Found Set Env Var: GO_PROVIDER_IMG=$NEW_TAG"
+            echo "GO_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+        if [[ "$image" =~ $python_provider_image_regex ]]; then
+            echo "Python Provider Image Found Set Env Var: PYTHON_PROVIDER_IMG=$NEW_TAG"
+            echo "PYTHON_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+        if [[ "$image" =~ $nodejs_provider_image_regex ]]; then
+            echo "Node.js Provider Image Found Set Env Var: NODEJS_PROVIDER_IMG=$NEW_TAG"
+            echo "NODEJS_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
         fi
         if [[ "$image" =~ $addon_regex ]]; then
             echo "Addon-Analyzer Image Found Set Env Var: ANALYZER_ADDON=$NEW_TAG"
