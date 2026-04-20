@@ -6,7 +6,6 @@ Branch | Konveyor | CLI
 --|--|--
 **main** | [![Run Konveyor main nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-main.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-main.yaml) | [![Nightly CLI test for main](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml/badge.svg)](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml)
 **release-0.8** | [![Run Konveyor release-0.8 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.8.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.8.yaml) | [![Nightly CLI test for release-0.8](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-release08.yaml/badge.svg)](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-release08.yaml)
-**release-0.7** | [![Run Konveyor release-0.7 nightly tests](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.7.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-release-0.7.yaml) | [![Nightly CLI test for release-0.7](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-release07.yaml/badge.svg)](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-release07.yaml)
 
 ## Repositories status
 
@@ -28,7 +27,6 @@ Today all of the workflows below are deprecated, and we will be moving away from
 * [ci-repo.yaml](.github/workflows/ci-repo.yaml)
 * [global-ci-bundle.yml](.github/workflows/global-ci-bundle.yml)
 * [nightly-main.yaml](.github/workflows/nightly-main.yaml)
-* [nightly-release-0.7.yaml](.github/workflows/nightly-release-0.7.yaml)
 * [validate-shared-tests.yml](.github/workflows/validate-shared-tests.yml)
 
 These workflows are the new workflows and related files:
