@@ -139,7 +139,7 @@ jobs:
       
       - name: build image
         id: build-image
-        uses: konveyor/ci/build-image@main
+        uses: konveyor/ci/build-image@release-0.9
         with:
           repo: ${{ matrix.image.repo }}
           ref: ${{ (inputs.tested_repo == '' || matrix.image.repo == inputs.tested_repo) && inputs.branch || github.base_ref || github.ref_name }}
