@@ -91,7 +91,7 @@ jobs:
     name: "Build level 0 images"
     if: ${{ fromJSON(needs.prepare-matrix.outputs.matrix_0).image[0] != null }}
     needs: prepare-matrix
-    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@release-0.9
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
       branch: ${{ inputs.branch || 'release-0.9' }}
@@ -102,7 +102,7 @@ jobs:
     needs: 
     - prepare-matrix
     - build-images
-    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@release-0.9
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
       branch: ${{ inputs.branch || 'release-0.9' }}
@@ -113,7 +113,7 @@ jobs:
     needs: 
     - prepare-matrix
     - build-level1-images
-    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@release-0.9
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
       branch: ${{ inputs.branch || 'release-0.9' }}
@@ -124,7 +124,7 @@ jobs:
     needs: 
     - prepare-matrix
     - build-level2-images
-    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@release-0.9
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
       branch: ${{ inputs.branch || 'release-0.9' }}
@@ -169,7 +169,7 @@ jobs:
     steps:
       - name: Run Koncur Testing
         id: koncur-test
-        uses: konveyor/ci/koncur-kantra@main
+        uses: konveyor/ci/koncur-kantra@release-0.9
         with:
           os: ${{ matrix.os.os }}
           image_pattern: |
