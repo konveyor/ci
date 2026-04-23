@@ -1,0 +1,224 @@
+name: Koncur MCP
+
+inputs:
+  skip_maven:
+    description: "Whether to setup access to the testing maven packages"
+    default: true
+    type: boolean
+  image_pattern:
+    description: The pattern used to download the image's that have been built to test
+    required: false
+    type: string
+  ref:
+    description: The ref of koncur to use for testing
+    required: false
+    type: string
+    default: main
+
+runs:
+  using: "composite"
+  steps:
+    - name: Verify local/bin is on the path
+      shell: bash
+      run: |
+        mkdir -p $HOME/.local/bin
+        echo $HOME/.local/bin >> $GITHUB_PATH
+
+    ## Loading images
+    - name: Download Images from artifacts
+      id: download-artifacts
+      continue-on-error: true
+      if: ${{ inputs.image_pattern }}
+      uses: actions/download-artifact@v4
+      with:
+        pattern: ${{ inputs.image_pattern }}
+        path: ${{ runner.temp }}/images
+        merge-multiple: true
+
+    - name: Load images into podman
+      if: ${{ inputs.image_pattern }}
+      shell: bash
+      run: |
+        for image in $(find ${RUNNER_TEMP}/images -type f -name "*.tar"); do
+          echo "Loading image: ${image}"
+          loaded=$(podman load -i "${image}" | awk '{print $NF}')
+
+          if [[ "$loaded" =~ .*analyzer-mcp.* ]]; then
+            echo "MCP_IMG=$loaded" >> $GITHUB_ENV
+          fi
+          if [[ "$loaded" =~ .*java(-external)?-provider.* ]]; then
+            echo "JAVA_PROVIDER_IMG=$loaded" >> $GITHUB_ENV
+          fi
+          if [[ "$loaded" =~ .*generic(-external)?-provider.* ]]; then
+            echo "GENERIC_PROVIDER_IMG=$loaded" >> $GITHUB_ENV
+          fi
+          if [[ "$loaded" =~ .*kantra.* ]]; then
+            echo "RUNNER_IMG=$loaded" >> $GITHUB_ENV
+          fi
+        done
+        rm -rf ${RUNNER_TEMP}/images
+
+    ## Set up test data and providers
+    - name: Set up test data volume
+      shell: bash
+      run: |
+        podman volume create test-data
+
+    - name: Checkout analyzer-lsp for examples
+      uses: actions/checkout@v6
+      with:
+        repository: konveyor/analyzer-lsp
+        path: analyzer-lsp
+
+    - name: Copy test data to volume
+      shell: bash
+      run: |
+        podman run --rm \
+          -v test-data:/target:U,Z \
+          -v $(pwd)/analyzer-lsp/examples:/src/:U,Z \
+          --entrypoint=cp alpine -a /src/. /target/
+        podman run --rm --user=0 \
+          -v test-data:/target:Z \
+          --entrypoint=sh alpine -c 'chown -R 1001:0 /target && chmod -R a+rwX /target'
+
+    - name: Start provider pod
+      shell: bash
+      run: |
+        podman pod create --name=analyzer-mcp-pod
+        podman run --pod analyzer-mcp-pod \
+          --name java-provider -d \
+          -v test-data:/analyzer-lsp/examples:U,Z \
+          $JAVA_PROVIDER_IMG --port 14651
+        podman run --pod analyzer-mcp-pod \
+          --entrypoint /usr/local/bin/entrypoint.sh \
+          --name golang-provider -d \
+          -v test-data:/analyzer-lsp/examples:U,Z \
+          $GENERIC_PROVIDER_IMG --port 14653
+
+    - name: Wait for providers to be ready
+      shell: bash
+      run: |
+        echo "Waiting for providers to start..."
+        sleep 10
+
+    ## Extract analyzer-mcp binary
+    - name: Extract analyzer-mcp binary
+      shell: bash
+      run: |
+        podman cp $(podman create --name mcp-extract $MCP_IMG):/usr/local/bin/analyzer-mcp . && \
+        podman rm mcp-extract
+        cp analyzer-mcp $HOME/.local/bin/analyzer-mcp
+        chmod +x $HOME/.local/bin/analyzer-mcp
+
+    ## Extract rules from kantra image
+    - name: Extract rules from kantra image
+      shell: bash
+      run: |
+        podman cp $(podman create --name rules-extract $RUNNER_IMG):/opt/rulesets . && \
+        podman rm rules-extract
+
+    ## Write provider config
+    - name: Write provider config
+      shell: bash
+      run: |
+        cat > provider-config.json << 'PROVEOF'
+        [
+          {
+            "name": "java",
+            "address": "localhost:14651",
+            "initConfig": [
+              {
+                "location": "/analyzer-lsp/examples/java",
+                "providerSpecificConfig": {
+                  "lspServerName": "java",
+                  "bundles": "/jdtls/java-analyzer-bundle/java-analyzer-bundle.core/target/java-analyzer-bundle.core-1.0.0-SNAPSHOT.jar",
+                  "depOpenSourceLabelsFile": "/usr/local/etc/maven.default.index",
+                  "lspServerPath": "/jdtls/bin/jdtls",
+                  "mavenIndexPath": "/usr/local/etc"
+                },
+                "analysisMode": "source-only"
+              }
+            ]
+          },
+          {
+            "name": "go",
+            "address": "localhost:14653",
+            "initConfig": [
+              {
+                "location": "/analyzer-lsp/examples/golang",
+                "analysisMode": "full",
+                "providerSpecificConfig": {
+                  "lspServerName": "generic",
+                  "lspServerPath": "/usr/local/bin/gopls",
+                  "workspaceFolders": ["file:///analyzer-lsp/examples/golang"],
+                  "dependencyProviderPath": "/usr/local/bin/golang-dependency-provider"
+                }
+              }
+            ]
+          },
+          {
+            "name": "builtin",
+            "initConfig": [
+              {
+                "location": "/analyzer-lsp/examples/builtin"
+              }
+            ]
+          }
+        ]
+        PROVEOF
+
+    ## Koncur setup
+    - name: Checkout koncur
+      uses: actions/checkout@v6
+      with:
+        repository: konveyor/koncur
+        ref: ${{ inputs.ref }}
+
+    - name: Setup Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+
+    - name: Build Koncur
+      shell: bash
+      run: |
+        go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
+
+    - name: Create MCP target config
+      shell: bash
+      run: |
+        mkdir -p .koncur/config
+        cat > .koncur/config/target-mcp.yaml << EOF
+        type: mcp
+        mcp:
+          binaryPath: $HOME/.local/bin/analyzer-mcp
+          providerConfig: $(pwd)/provider-config.json
+          rules: $(pwd)/rulesets
+        EOF
+
+    - name: Run test
+      shell: bash
+      run: |
+        koncur run tests -t mcp -o yaml --output-file test-mcp.yaml
+
+    - name: Upload output on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: koncur-mcp-failures
+        path: .koncur/output
+        retention-days: 5
+        include-hidden-files: true
+
+    - name: Upload result yaml
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: koncur-mcp-summary
+        path: test-mcp.yaml
+        retention-days: 3
+
+    - name: Cleanup pod
+      if: always()
+      shell: bash
+      run: podman pod rm -f analyzer-mcp-pod || true

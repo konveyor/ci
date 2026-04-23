@@ -103,8 +103,13 @@ config:
         go_mod_update:
           - "github.com/konveyor/tackle2-seed@BRANCH_PLACEHOLDER"
 
+  - repo: "konveyor-ecosystem/analyzer-mcp"
+    image: "quay.io/konveyor/analyzer-mcp"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+
   - repo: "konveyor/c-sharp-analyzer-provider"
     image: "quay.io/konveyor/c-sharp-provider"
     dockerfile_path: "Dockerfile"
     context_path: "."
-    
+
