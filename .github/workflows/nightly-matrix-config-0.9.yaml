@@ -1,0 +1,77 @@
+config:
+  - repo: "konveyor/tackle2-ui"
+    image: "quay.io/konveyor/tackle2-ui"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+
+  - repo: "konveyor/tackle2-addon-platform"
+    image: "quay.io/konveyor/tackle2-addon-platform"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+
+  - repo: "konveyor/kai"
+    image: "quay.io/konveyor/kai-solution-server"
+    dockerfile_path: "./kai_mcp_solution_server/tools/deploy/Containerfile"
+    context_path: "./kai_mcp_solution_server"
+
+  - repo: "konveyor/tackle2-addon-discovery"
+    image: "quay.io/konveyor/tackle2-addon-discovery"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+
+  - repo: "konveyor/analyzer-lsp"
+    image: "quay.io/konveyor/analyzer-lsp"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+    dependent_jobs:
+      - repo: "konveyor/tackle2-addon-analyzer"
+        image: "quay.io/konveyor/tackle2-addon-analyzer"
+        dockerfile_path: "Dockerfile"
+        context_path: "."
+        go_mod_update:
+          - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+
+  # For release-0.9, only the generic provider exists (no language-specific providers yet)
+  - repo: "konveyor/analyzer-lsp"
+    image: "quay.io/konveyor/generic-external-provider"
+    dockerfile_path: "./external-providers/generic-external-provider/Dockerfile"
+    context_path: "."
+    go_mod_update:
+      - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+    go_mod_directory: "./external-providers/generic-external-provider"
+    dependent_jobs:
+      # NOTE that the kantra actual requirements are more than this
+      # but this should be changed eventually so not going to deal with it
+      # right now
+      - repo: "konveyor/kantra"
+        image: "quay.io/konveyor/kantra"
+        dockerfile_path: "Dockerfile"
+        context_path: "."
+        go_mod_update:
+          - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+          - "github.com/konveyor/analyzer-lsp/external-providers/java-external-provider@BRANCH_PLACEHOLDER"
+          ## There are no release branches for asset-generation, so make sure we use the latest code
+          - "github.com/konveyor/asset-generation@main"
+
+  - repo: "konveyor/java-analyzer-bundle"
+    image: "quay.io/konveyor/jdtls-server-base"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+
+  - repo: "konveyor/static-report"
+    image: "quay.io/konveyor/static-report"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+    dependent_jobs:
+      - repo: "konveyor/tackle2-hub"
+        image: "quay.io/konveyor/tackle2-hub"
+        dockerfile_path: "Dockerfile"
+        context_path: "."
+        args: "SEED_BRANCH=BRANCH_PLACEHOLDER"
+        go_mod_update:
+          - "github.com/konveyor/tackle2-seed@BRANCH_PLACEHOLDER"
+
+  - repo: "konveyor/c-sharp-analyzer-provider"
+    image: "quay.io/konveyor/c-sharp-provider"
+    dockerfile_path: "Dockerfile"
+    context_path: "."

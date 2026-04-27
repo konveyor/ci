@@ -58,9 +58,9 @@ jobs:
         id: prepare
         shell: bash
         run: |
-          
+
           pip install -r scripts/requirements.txt
-          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ needs.nightly-tag.outputs.tag }} -b ${{ inputs.branch || 'release-0.9' }} out
+          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config-0.9.yaml -t ${{ needs.nightly-tag.outputs.tag }} -b ${{ inputs.branch || 'release-0.9' }} out
           matrix_0=$(cat out/level_0.json)
           matrix_1=$(cat out/level_1.json)
           matrix_2=$(cat out/level_2.json)
