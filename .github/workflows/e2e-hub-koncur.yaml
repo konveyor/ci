@@ -2,8 +2,13 @@ name: Run Koncur with tackle-hub config e2e
 
 on:
   workflow_call:
-    # There should be no need to pass in anything as we should have all we need
-    # based on the github context
+    inputs:
+      tag:
+        description: |
+          image tag forwarded to e2e-image-build. When omitted, e2e-image-build uses the
+          same branch_YYYY.MM.DD default as nightly-koncur.
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       repo:
@@ -16,7 +21,12 @@ on:
           "release-0.8".
         required: false
         type: string
-        default: main 
+        default: main
+      tag:
+        description: |
+          image tag forwarded to e2e-image-build. When omitted, nightly-style default applies.
+        required: false
+        type: string
 
 jobs:
 
@@ -25,6 +35,7 @@ jobs:
     with:
       repo: ${{ inputs.repo || github.repository }}
       ref: ${{ inputs.ref || github.ref }}
+      tag: ${{ inputs.tag }}
     secrets: inherit
 
   run-koncur-action:
@@ -35,5 +46,5 @@ jobs:
         uses: konveyor/ci/koncur-tackle-hub@main
         with:
           image_pattern: |
-            *{tackle-keycloak-init,tackle2-*,provider}--${{ github.run_id }}
-          ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
+            *{tackle-keycloak-init,tackle2-*,provider}--${{ needs.build-images.outputs.image_tag }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name }}

@@ -2,8 +2,13 @@ name: Run Koncur with kantra config e2e
 
 on:
   workflow_call:
-    # There should be no need to pass in anything as we should have all we need
-    # based on the github context
+    inputs:
+      tag:
+        description: |
+          image tag forwarded to e2e-image-build. When omitted, e2e-image-build uses the
+          same branch_YYYY.MM.DD default as nightly-koncur.
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       repo:
@@ -16,7 +21,12 @@ on:
           "release-0.8".
         required: false
         type: string
-        default: main 
+        default: main
+      tag:
+        description: |
+          image tag forwarded to e2e-image-build. When omitted, nightly-style default applies.
+        required: false
+        type: string
 
 jobs:
 
@@ -25,11 +35,12 @@ jobs:
     with:
       repo: ${{ inputs.repo || github.repository }}
       ref: ${{ inputs.ref || github.ref }}
+      tag: ${{ inputs.tag }}
     secrets: inherit
 
   run-koncur-action:
     needs:
-    - build-images
+      - build-images
     strategy:
       fail-fast: false
       matrix:
@@ -41,7 +52,7 @@ jobs:
           - os: "windows"
             runner: "windows-latest"
         exclude:
-          - os: 
+          - os:
               os: "macos"
               runner: "macos-26-large"
     runs-on: ${{ matrix.os.runner }}
@@ -52,6 +63,5 @@ jobs:
         with:
           os: ${{ matrix.os.os }}
           image_pattern: |
-            *{kantra,provider}--${{ github.run_id }}
-          ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
-
+            *{kantra,provider}--${{ needs.build-images.outputs.image_tag }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name }}

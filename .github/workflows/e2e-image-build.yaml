@@ -29,6 +29,12 @@ on:
         required: false
         type: string
         default: 'main'
+    outputs:
+      image_tag:
+        description: |
+          Tag used for image artifacts. When inputs.tag is omitted, matches nightly-koncur (branch_YYYY.MM.DD)
+          so base_image and manifest artifact names align.
+        value: ${{ jobs.prepare-matrix.outputs.image_tag }}
   workflow_dispatch:
     inputs:
       repo:
@@ -57,13 +63,33 @@ on:
         default: 'main'
 
 jobs:
+  resolve-image-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.set.outputs.tag }}
+    steps:
+      - name: Resolve image tag (nightly-koncur shape when inputs.tag unset)
+        id: set
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH="${{ github.base_ref || github.ref_name }}"
+            BRANCH="${BRANCH#refs/heads/}"
+            date=$(date +'%Y.%m.%d')
+            echo "tag=${BRANCH}_$date" >> "$GITHUB_OUTPUT"
+          fi
+
   prepare-matrix:
+    needs: resolve-image-tag
     runs-on: ubuntu-latest
     outputs:
       matrix_0: ${{ steps.prepare.outputs.matrix_0 }}
       matrix_1: ${{ steps.prepare.outputs.matrix_1 }}
       matrix_2: ${{ steps.prepare.outputs.matrix_2 }}
       matrix_3: ${{ steps.prepare.outputs.matrix_3 }}
+      image_tag: ${{ needs.resolve-image-tag.outputs.tag }}
     steps:
       - name: Checkout ci repo
         uses: actions/checkout@v5
@@ -104,7 +130,7 @@ jobs:
           cmd=(
             python scripts/parse_matrix_config.py
             .github/workflows/nightly-matrix-config.yaml
-            -t "${{ inputs.tag || github.run_id }}"
+            -t "${{ needs.resolve-image-tag.outputs.tag }}"
             -b "${{ github.base_ref || github.ref_name }}"
             -r "${{ inputs.repo || github.repository }}"
           )
@@ -154,7 +180,7 @@ jobs:
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
       branch: ${{ inputs.ref || github.ref }}
-      tag: ${{ inputs.tag || github.run_id }}
+      tag: ${{ needs.prepare-matrix.outputs.image_tag }}
       tested_repo: ${{ inputs.repo || github.repository }}
 
   build-level1-images:
@@ -167,7 +193,7 @@ jobs:
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
       branch: ${{ inputs.ref || github.ref }}
-      tag: ${{ inputs.tag || github.run_id }}
+      tag: ${{ needs.prepare-matrix.outputs.image_tag }}
       tested_repo: ${{ inputs.repo || github.repository }}
 
   build-level2-images:
@@ -180,7 +206,7 @@ jobs:
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
       branch: ${{ inputs.ref || github.ref }}
-      tag: ${{ inputs.tag || github.run_id }}
+      tag: ${{ needs.prepare-matrix.outputs.image_tag }}
       tested_repo: ${{ inputs.repo || github.repository }}
   
   build-level3-images:
@@ -193,6 +219,6 @@ jobs:
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
       branch: ${{ inputs.ref || github.ref }}
-      tag: ${{ inputs.tag || github.run_id }}
+      tag: ${{ needs.prepare-matrix.outputs.image_tag }}
       tested_repo: ${{ inputs.repo || github.repository }}
      
