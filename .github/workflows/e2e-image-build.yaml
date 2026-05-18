@@ -29,6 +29,13 @@ on:
         required: false
         type: string
         default: 'main'
+      overrides:
+        description: |
+          JSON list of repo#PR overrides (e.g., '["konveyor/java-analyzer-bundle#123"]').
+          These will be merged with any /ci test-with comment overrides.
+          Sets the ref for matching repos to refs/pull/<pr>/merge.
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       repo:
@@ -55,6 +62,13 @@ on:
         required: false
         type: string
         default: 'main'
+      overrides:
+        description: |
+          JSON list of repo#PR overrides (e.g., '["konveyor/java-analyzer-bundle#123"]').
+          These will be merged with any /ci test-with comment overrides.
+          Sets the ref for matching repos to refs/pull/<pr>/merge.
+        required: false
+        type: string
 
 jobs:
   prepare-matrix:
@@ -93,13 +107,30 @@ jobs:
         id: prepare
         shell: bash
         env:
-          OVERRIDES: ${{ steps.get_ci_comments.outputs.overrides }}
+          COMMENT_OVERRIDES: ${{ steps.get_ci_comments.outputs.overrides }}
+          INPUT_OVERRIDES: ${{ inputs.overrides }}
           TESTED_REPO_FORK: ${{ github.event.pull_request.head.repo.full_name }}
           TESTED_REPO_BRANCH: ${{ github.event.pull_request.head.ref }}
           GH_TOKEN: ${{ github.token }}
         run: |
 
           pip install -r scripts/requirements.txt
+
+          # Merge input overrides with comment overrides
+          MERGED_OVERRIDES="[]"
+          if [ -n "$INPUT_OVERRIDES" ] && [ "$INPUT_OVERRIDES" != "[]" ] && [ -n "$COMMENT_OVERRIDES" ] && [ "$COMMENT_OVERRIDES" != "[]" ]; then
+            # Both exist - merge them
+            MERGED_OVERRIDES=$(jq -s '.[0] + .[1]' <(echo "$INPUT_OVERRIDES") <(echo "$COMMENT_OVERRIDES"))
+            echo "Merged input and comment overrides: $MERGED_OVERRIDES"
+          elif [ -n "$INPUT_OVERRIDES" ] && [ "$INPUT_OVERRIDES" != "[]" ]; then
+            # Only input overrides
+            MERGED_OVERRIDES="$INPUT_OVERRIDES"
+            echo "Using input overrides: $MERGED_OVERRIDES"
+          elif [ -n "$COMMENT_OVERRIDES" ] && [ "$COMMENT_OVERRIDES" != "[]" ]; then
+            # Only comment overrides
+            MERGED_OVERRIDES="$COMMENT_OVERRIDES"
+            echo "Using comment overrides: $MERGED_OVERRIDES"
+          fi
 
           cmd=(
             python scripts/parse_matrix_config.py
@@ -109,9 +140,9 @@ jobs:
             -r "${{ inputs.repo || github.repository }}"
           )
 
-          if [ -n "$OVERRIDES" ] && [ "$OVERRIDES" != "[]" ]; then
-            echo "Applying CI comment overrides: $OVERRIDES"
-            cmd+=(-o "$OVERRIDES")
+          if [ "$MERGED_OVERRIDES" != "[]" ]; then
+            echo "Applying overrides: $MERGED_OVERRIDES"
+            cmd+=(-o "$MERGED_OVERRIDES")
             if [ -n "$TESTED_REPO_FORK" ] && [ -n "$TESTED_REPO_BRANCH" ]; then
               cmd+=(--tested-repo-head "${TESTED_REPO_FORK}:${TESTED_REPO_BRANCH}")
             fi

@@ -85,7 +85,7 @@ config:
         image: "quay.io/konveyor/java-external-provider"
         dockerfile_path: "./external-providers/java-external-provider/Dockerfile"
         context_path: "."
-        base_image_arg: JAVA_BUDLE_IMAGE
+        base_image_arg: JAVA_BUNDLE_IMAGE
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
         go_mod_directory: "./external-providers/java-external-provider"
