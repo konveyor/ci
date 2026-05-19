@@ -279,8 +279,13 @@ def organize_by_levels(
         Returns:
             True if this job or any descendant matches the filter
         """
-        # Check if this job matches the filter
-        matches = repo_filter is None or job.get("repo") == repo_filter
+        # Check if this job matches the filter OR has an override
+        # Jobs with overrides should be included even if they don't match the repo filter
+        matches = (
+            repo_filter is None
+            or job.get("repo") == repo_filter
+            or (ref_overrides and job.get("repo") in ref_overrides)
+        )
 
         # Check if any dependent jobs match (look ahead)
         has_matching_descendant = False
