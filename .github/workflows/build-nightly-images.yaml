@@ -112,6 +112,15 @@ jobs:
           cd "$GO_MOD_DIR"
           echo "Running go mod commands in directory: $(pwd)"
 
+          # setup-go restores GOMODCACHE with shallow clones, which can become stale
+          GOMODCACHE="$(go env GOMODCACHE)"
+          if [ -n "$GOMODCACHE" ] && [ "$GOMODCACHE" != "/" ]; then
+            rm -rf -- "$GOMODCACHE/cache/vcs"
+          else
+            echo "Refusing to clear Go VCS cache: invalid GOMODCACHE='$GOMODCACHE'" >&2
+            exit 1
+          fi
+
           while IFS= read -r mod_update; do
             echo "updating go mod $mod_update"
             go get "$mod_update"
