@@ -126,7 +126,7 @@ on:
           default: main
       ui_tests_ref:
         description: |
-          The branch or PR of the tackle-ui-tests repository to clone.
+          The branch or PR of the tackle2-ui repository to clone.
           For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
           For a branch, the reference format would just be the branch name.
           This input can be set automatically on a pull request by adding a string of the format:
@@ -144,6 +144,13 @@ on:
         required: false
         type: string
         default: "@ci"
+      ui_test_spec:
+        description: |
+          A comma separated list of test file paths to run (overrides ui_test_tags).
+          For example: "administration/credentials/*.test.ts,migration/controls/**/*.test.ts"
+        required: false
+        type: string
+        default: ""
 
   workflow_dispatch:
     inputs:
@@ -202,7 +209,7 @@ on:
         default: make test-tier0 test-tier1
       ui_tests_ref:
         description: |
-          The branch or PR of the tackle-ui-tests repository to clone.
+          The branch or PR of the tackle2-ui repository to clone.
           For a pull request, the reference format would be "refs/pull/${PR_NUMBER}/merge".
           For a branch, the reference format would just be the branch name.
           This input can be set automatically on a pull request by adding a string of the format:
@@ -220,6 +227,13 @@ on:
         required: false
         type: string
         default: "@ci"
+      ui_test_spec:
+        description: |
+          A comma separated list of test file paths to run (overrides ui_test_tags).
+          For example: "administration/credentials/*.test.ts,migration/controls/**/*.test.ts"
+        required: false
+        type: string
+        default: ""
 
 env:
   operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:4h
@@ -496,5 +510,6 @@ jobs:
         uses: konveyor/tackle2-ui/.github/actions/run-ui-tests@main
         with:
           test_tags: ${{ inputs.ui_test_tags }}
+          test_spec: ${{ inputs.ui_test_spec }}
           tests_ref: ${{ env.UI_TESTS_REF }}
           base_url: ${{ env.UI_URL }}
