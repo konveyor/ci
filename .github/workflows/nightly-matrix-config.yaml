@@ -30,6 +30,10 @@ config:
         context_path: "."
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+      - repo: "konveyor/c-sharp-analyzer-provider"
+        image: "quay.io/konveyor/c-sharp-provider"
+        dockerfile_path: "Dockerfile"
+        context_path: "."
 
   - repo: "konveyor/analyzer-lsp"
     image: "quay.io/konveyor/go-external-provider"
@@ -103,8 +107,3 @@ config:
         go_mod_update:
           - "github.com/konveyor/tackle2-seed@BRANCH_PLACEHOLDER"
 
-  - repo: "konveyor/c-sharp-analyzer-provider"
-    image: "quay.io/konveyor/c-sharp-provider"
-    dockerfile_path: "Dockerfile"
-    context_path: "."
-    
