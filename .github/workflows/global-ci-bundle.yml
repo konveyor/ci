@@ -164,6 +164,11 @@ on:
         type: string
         required: false
         default: main
+      koncur_skip_maven:
+        description: Whether to skip setting up maven for koncur tests
+        type: boolean
+        required: false
+        default: true
 
   workflow_dispatch:
     inputs:
@@ -495,16 +500,6 @@ jobs:
         run: |
           kubectl port-forward -n konveyor-tackle svc/tackle-hub 8081:8080 &
           sleep 5
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8081/hub/applications > /dev/null 2>&1; then
-              echo "Hub API is ready"
-              exit 0
-            fi
-            echo "Waiting for Hub API... attempt $i"
-            sleep 5
-          done
-          echo "Hub API never became ready"
-          exit 1
 
       - name: Create Hub target config
         run: |
@@ -517,6 +512,8 @@ jobs:
 
       - name: Run Koncur Hub tests
         working-directory: koncur
+        env:
+          SKIP_MAVEN: ${{ inputs.koncur_skip_maven }}
         run: koncur run tests -t tackle-hub --target-config ../.koncur/config/target-tackle-hub.yaml -o yaml --output-file test-hub.yaml
 
       - name: Upload result yaml
@@ -601,6 +598,8 @@ jobs:
       - name: Run Koncur Kantra tests
         shell: bash
         working-directory: koncur
+        env:
+          SKIP_MAVEN: ${{ inputs.koncur_skip_maven }}
         run: koncur run tests -t kantra -o yaml --output-file test-kantra.yaml
 
       - name: Upload result yaml
