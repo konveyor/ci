@@ -299,44 +299,13 @@ jobs:
           path: go-konveyor-tests
           ref: "${{ env.GOLANG_TESTS_REF }}"
 
-      # TODO Should DRY this
-      - name: set up docker buildx
-        if: ${{ inputs.artifact != '' }}
-        uses: docker/setup-buildx-action@v2
-
-      - name: Start minikube
-        uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+      - name: Setup Konveyor
+        uses: konveyor/ci/setup-konveyor@main
         with:
-          memory: 'max'
-          cpus: 'max'
-
-      - name: Download artifact
-        if: ${{ inputs.artifact != '' }}
-        id: download-artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact }}
-          path: /tmp/container_images
-
-      - name: Load images
-        if: ${{ inputs.artifact != '' }}
-        env:
-          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
-        run: |
-          eval $(minikube -p minikube docker-env)
-          for image in $(
-            find "${IMAGES_PATH}" -type f -name "*.tar"
-          ); do
-            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
-            docker load --input ${image}
-          done
-
-      - name: Make bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
-        with:
-          operator_bundle: ${{ env.operator_bundle }}
-          operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
+          artifact: ${{ inputs.artifact }}
+          operator_bundle: ${{ inputs.operator_bundle }}
+          operator_bundle_fallback: ${{ env.operator_bundle }}
+          base_tag: ${{ inputs.base_tag }}
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
@@ -345,18 +314,8 @@ jobs:
           tackle_ui: ${{ inputs.tackle_ui }}
           addon_analyzer: ${{ inputs.addon_analyzer }}
           addon_discovery: ${{ inputs.addon_discovery }}
-
-      - name: Push bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        run: docker push ${operator_bundle}
-
-      - name: Install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
-        with:
-          bundle_image: ${{ inputs.operator_bundle == '' && env.operator_bundle || inputs.operator_bundle }}
           namespace: ${{ inputs.namespace }}
           tackle_cr: ${{ inputs.tackle_cr }}
-      # end DRY
 
       - uses: actions/setup-go@v5
         with:
@@ -408,44 +367,13 @@ jobs:
     #       - ${{ inputs.ui_test_tags }}
 
     steps:
-      # TODO Should DRY this
-      - name: set up docker buildx
-        if: ${{ inputs.artifact != '' }}
-        uses: docker/setup-buildx-action@v2
-
-      - name: Start minikube
-        uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+      - name: Setup Konveyor
+        uses: konveyor/ci/setup-konveyor@main
         with:
-          memory: 'max'
-          cpus: 'max'
-
-      - name: Download artifact
-        if: ${{ inputs.artifact != '' }}
-        id: download-artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact }}
-          path: /tmp/container_images
-
-      - name: Load images
-        if: ${{ inputs.artifact != '' }}
-        env:
-          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
-        run: |
-          eval $(minikube -p minikube docker-env)
-          for image in $(
-            find "${IMAGES_PATH}" -type f -name "*.tar"
-          ); do
-            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
-            docker load --input ${image}
-          done
-
-      - name: Make bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
-        with:
-          operator_bundle: ${{ env.operator_bundle }}
-          operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
+          artifact: ${{ inputs.artifact }}
+          operator_bundle: ${{ inputs.operator_bundle }}
+          operator_bundle_fallback: ${{ env.operator_bundle }}
+          base_tag: ${{ inputs.base_tag }}
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
@@ -454,15 +382,6 @@ jobs:
           tackle_ui: ${{ inputs.tackle_ui }}
           addon_analyzer: ${{ inputs.addon_analyzer }}
           addon_discovery: ${{ inputs.addon_discovery }}
-
-      - name: Push bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        run: docker push ${operator_bundle}
-
-      - name: Install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
-        with:
-          bundle_image: ${{ inputs.operator_bundle == '' && env.operator_bundle || inputs.operator_bundle }}
           namespace: ${{ inputs.namespace }}
           tackle_cr: ${{ inputs.tackle_cr }}
 
@@ -477,7 +396,6 @@ jobs:
           ingress_ip=$(kubectl get ingress/tackle -n konveyor-tackle -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "ingress is ready at: ${ingress_ip}"
           echo "UI_URL=https://${ingress_ip}" >>$GITHUB_ENV
-      # end DRY
 
       - name: Extract pull request number from inputs or PR description
         shell: bash

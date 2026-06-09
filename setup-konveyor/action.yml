@@ -1,0 +1,132 @@
+name: Setup Konveyor
+description: Start minikube, load images from artifact, build bundle if needed, and install Konveyor
+
+inputs:
+  artifact:
+    description: Name of artifact containing custom images to load
+    required: false
+    default: ""
+  operator_bundle:
+    description: Image URI for operator-bundle. If empty, a bundle will be built.
+    required: false
+    default: ""
+  operator_bundle_fallback:
+    description: Fallback operator bundle URI used when building custom bundle
+    required: false
+    default: ""
+  base_tag:
+    description: Tag for operator image to build custom bundle on top of
+    required: false
+    default: "latest"
+  oauth_proxy:
+    description: Image URI for oauth_proxy
+    required: false
+    default: ""
+  tackle_hub:
+    description: Image URI for tackle-hub
+    required: false
+    default: ""
+  tackle_postgres:
+    description: Image URI for tackle-postgres
+    required: false
+    default: ""
+  keycloak_sso:
+    description: Image URI for keycloak_sso
+    required: false
+    default: ""
+  keycloak_init:
+    description: Image URI for keycloak_init
+    required: false
+    default: ""
+  tackle_ui:
+    description: Image URI for tackle-ui
+    required: false
+    default: ""
+  addon_analyzer:
+    description: Image URI for analyzer addon
+    required: false
+    default: ""
+  addon_discovery:
+    description: Image URI for discovery addon
+    required: false
+    default: ""
+  namespace:
+    description: Namespace for the konveyor install
+    required: false
+    default: ""
+  tackle_cr:
+    description: Full YAML/JSON string representing the Tackle resource to create
+    required: false
+    default: |
+      kind: Tackle
+      apiVersion: tackle.konveyor.io/v1alpha1
+      metadata:
+        name: tackle
+      spec:
+        image_pull_policy: IfNotPresent
+        analyzer_container_memory: 0
+        analyzer_container_cpu: 0
+        feature_auth_required: false
+        disable_maven_search: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up docker buildx
+      if: ${{ inputs.artifact != '' }}
+      uses: docker/setup-buildx-action@v2
+
+    - name: Start minikube
+      uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+      with:
+        memory: 'max'
+        cpus: 'max'
+
+    - name: Download artifact
+      if: ${{ inputs.artifact != '' }}
+      id: download-artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact }}
+        path: /tmp/container_images
+
+    - name: Load images
+      if: ${{ inputs.artifact != '' }}
+      shell: bash
+      env:
+        IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+      run: |
+        eval $(minikube -p minikube docker-env)
+        for image in $(
+          find "${IMAGES_PATH}" -type f -name "*.tar"
+        ); do
+          echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
+          docker load --input ${image}
+        done
+
+    - name: Make bundle
+      if: ${{ inputs.operator_bundle == '' }}
+      uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
+      with:
+        operator_bundle: ${{ inputs.operator_bundle_fallback }}
+        operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
+        oauth_proxy: ${{ inputs.oauth_proxy }}
+        tackle_hub: ${{ inputs.tackle_hub }}
+        tackle_postgres: ${{ inputs.tackle_postgres }}
+        keycloak_sso: ${{ inputs.keycloak_sso }}
+        keycloak_init: ${{ inputs.keycloak_init }}
+        tackle_ui: ${{ inputs.tackle_ui }}
+        addon_analyzer: ${{ inputs.addon_analyzer }}
+        addon_discovery: ${{ inputs.addon_discovery }}
+
+    - name: Push bundle
+      if: ${{ inputs.operator_bundle == '' }}
+      shell: bash
+      run: docker push ${{ inputs.operator_bundle_fallback }}
+
+    - name: Install konveyor
+      uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
+      with:
+        bundle_image: ${{ inputs.operator_bundle == '' && inputs.operator_bundle_fallback || inputs.operator_bundle }}
+        namespace: ${{ inputs.namespace }}
+        tackle_cr: ${{ inputs.tackle_cr }}
