@@ -456,7 +456,7 @@ jobs:
           repository: konveyor/ci
 
       - name: Setup Konveyor
-        uses: konveyor/ci/setup-konveyor@main
+        uses: mguetta1/ci/setup-konveyor@global-ci-bundle
         with:
           artifact: ${{ inputs.artifact }}
           operator_bundle: ${{ inputs.operator_bundle }}
