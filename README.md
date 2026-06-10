@@ -25,7 +25,6 @@ Today all of the workflows below are deprecated, and we will be moving away from
 * [global-ci.yml](.github/workflows/global-ci.yml)
 * [nightly-release-0.8.yaml](.github/workflows/nightly-release-0.8.yaml)
 * [ci-repo.yaml](.github/workflows/ci-repo.yaml)
-* [global-ci-bundle.yml](.github/workflows/global-ci-bundle.yml)
 * [nightly-main.yaml](.github/workflows/nightly-main.yaml)
 * [validate-shared-tests.yml](.github/workflows/validate-shared-tests.yml)
 
