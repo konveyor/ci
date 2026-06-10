@@ -1,6 +1,6 @@
 # Setup Konveyor Action
 
-Composite action that starts minikube, loads images from artifacts, builds an operator bundle if needed, and installs Konveyor.
+Composite action that creates a Kind cluster, loads images from artifacts, builds an operator bundle if needed, and installs Konveyor.
 
 ## Usage
 
@@ -33,9 +33,9 @@ Composite action that starts minikube, loads images from artifacts, builds an op
 
 ## What it does
 
-1. Sets up docker buildx (if artifact is provided)
-2. Starts minikube with max memory/cpus
-3. Downloads and loads images from artifact into minikube
+1. Creates a Kind cluster with ingress support
+2. Installs ingress-nginx controller
+3. Downloads and loads images from artifact into Kind cluster
 4. Makes operator bundle (if `operator_bundle` is empty)
 5. Pushes the bundle to registry
 6. Installs Konveyor using the operator
