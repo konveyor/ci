@@ -73,7 +73,7 @@ on:
           Namespace for the konveyor install.
         type: string
         required: false
-        default: ""
+        default: "konveyor-tackle"
       tackle_cr:
         description: |
           Full JSON encoded string representing the Tackle resource to be created.
