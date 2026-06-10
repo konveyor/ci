@@ -132,9 +132,16 @@ runs:
           kind load image-archive "${image}" --name konveyor-test
         done
 
+    - name: Checkout tackle2-operator
+      uses: actions/checkout@v4
+      with:
+        repository: konveyor/tackle2-operator
+        ref: ${{ inputs.base_tag == 'latest' && 'main' || inputs.base_tag }}
+        path: tackle2-operator
+
     - name: Make bundle
       if: ${{ inputs.operator_bundle == '' }}
-      uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
+      uses: ./tackle2-operator/.github/actions/make-bundle
       with:
         operator_bundle: ${{ inputs.operator_bundle_fallback }}
         operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
@@ -153,7 +160,7 @@ runs:
       run: docker push ${{ inputs.operator_bundle_fallback }}
 
     - name: Install konveyor
-      uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
+      uses: ./tackle2-operator/.github/actions/install-konveyor
       with:
         bundle_image: ${{ inputs.operator_bundle == '' && inputs.operator_bundle_fallback || inputs.operator_bundle }}
         namespace: ${{ inputs.namespace }}
