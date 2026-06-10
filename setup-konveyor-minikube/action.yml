@@ -138,3 +138,8 @@ runs:
         bundle_image: ${{ inputs.operator_bundle == '' && inputs.operator_bundle_fallback || inputs.operator_bundle }}
         namespace: ${{ inputs.namespace }}
         tackle_cr: ${{ inputs.tackle_cr }}
+
+    - name: Print CSV CR
+      shell: bash
+      run: |
+        kubectl get csv -n ${{ inputs.namespace }} -o yaml
