@@ -63,12 +63,17 @@ on:
         type: string
         required: false
         default: ""
+      kantra:
+        description: image uri for kantra (ie. quay.io/<namespace>/<image-name>:<tag>)
+        type: string
+        required: false
+        default: ""
       namespace:
         description: |
           Namespace for the konveyor install.
         type: string
         required: false
-        default: ""
+        default: "konveyor-tackle"
       tackle_cr:
         description: |
           Full JSON encoded string representing the Tackle resource to be created.
@@ -81,8 +86,9 @@ on:
             name: tackle
           spec:
             image_pull_policy: IfNotPresent
-            analyzer_container_memory: 0
-            analyzer_container_cpu: 0
+            analyzer_container_requests_cpu: 100m
+            provider_java_container_requests_cpu: 100m
+            provider_python_container_requests_cpu: 100m
             feature_auth_required: false
             disable_maven_search: true
       run_api_tests:
@@ -144,6 +150,26 @@ on:
         required: false
         type: string
         default: "@ci"
+      run_koncur_hub_tests:
+        description: A flag that determines whether the koncur tackle-hub tests should be run
+        type: boolean
+        required: false
+        default: true
+      run_koncur_kantra_tests:
+        description: A flag that determines whether the koncur kantra tests should be run
+        type: boolean
+        required: false
+        default: true
+      koncur_ref:
+        description: The branch or ref of the koncur repository to use for tests
+        type: string
+        required: false
+        default: main
+      koncur_skip_maven:
+        description: Whether to skip setting up maven for koncur tests
+        type: boolean
+        required: false
+        default: true
 
   workflow_dispatch:
     inputs:
@@ -168,7 +194,18 @@ on:
           Full JSON encoded string representing the Tackle resource to be created.
         type: string
         required: false
-        default: '{"kind":"Tackle","apiVersion":"tackle.konveyor.io/v1alpha1","metadata":{"name":"tackle"},"spec":{"image_pull_policy":"IfNotPresent","analyzer_container_memory":0,"analyzer_container_cpu":0,"feature_auth_required":false}}'
+        default: |
+          kind: Tackle
+          apiVersion: tackle.konveyor.io/v1alpha1
+          metadata:
+            name: tackle
+          spec:
+            image_pull_policy: IfNotPresent
+            analyzer_container_requests_cpu: 100m
+            provider_java_container_requests_cpu: 100m
+            provider_python_container_requests_cpu: 100m
+            feature_auth_required: false
+            disable_maven_search: true
       run_api_tests:
         description: |
           A flag that determines whether the API tests should be run or not
@@ -223,6 +260,8 @@ on:
 
 env:
   operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:4h
+  KANTRA_INPUT: ${{ inputs.kantra }}
+  BASE_TAG_INPUT: ${{ inputs.base_tag }}
 
 jobs:
   check-images:
@@ -270,6 +309,14 @@ jobs:
       - name: Check addon_discovery image exists
         if: ${{ inputs.addon_discovery != '' }}
         run: docker manifest inspect ${{ inputs.addon_discovery }}
+      - name: Check kantra image exists
+        if: ${{ inputs.run_koncur_kantra_tests }}
+        run: |
+          KANTRA_IMAGE="$KANTRA_INPUT"
+          if [ -z "$KANTRA_IMAGE" ]; then
+            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
+          fi
+          docker manifest inspect "$KANTRA_IMAGE"
 
   e2e-api-integration-tests:
     needs: check-images
@@ -299,44 +346,13 @@ jobs:
           path: go-konveyor-tests
           ref: "${{ env.GOLANG_TESTS_REF }}"
 
-      # TODO Should DRY this
-      - name: set up docker buildx
-        if: ${{ inputs.artifact != '' }}
-        uses: docker/setup-buildx-action@v2
-
-      - name: Start minikube
-        uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+      - name: Setup Konveyor
+        uses: mguetta1/ci/setup-konveyor-minikube@global-ci-bundle
         with:
-          memory: 'max'
-          cpus: 'max'
-
-      - name: Download artifact
-        if: ${{ inputs.artifact != '' }}
-        id: download-artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact }}
-          path: /tmp/container_images
-
-      - name: Load images
-        if: ${{ inputs.artifact != '' }}
-        env:
-          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
-        run: |
-          eval $(minikube -p minikube docker-env)
-          for image in $(
-            find "${IMAGES_PATH}" -type f -name "*.tar"
-          ); do
-            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
-            docker load --input ${image}
-          done
-
-      - name: Make bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
-        with:
-          operator_bundle: ${{ env.operator_bundle }}
-          operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
+          artifact: ${{ inputs.artifact }}
+          operator_bundle: ${{ inputs.operator_bundle }}
+          operator_bundle_fallback: ${{ env.operator_bundle }}
+          base_tag: ${{ inputs.base_tag }}
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
@@ -345,18 +361,8 @@ jobs:
           tackle_ui: ${{ inputs.tackle_ui }}
           addon_analyzer: ${{ inputs.addon_analyzer }}
           addon_discovery: ${{ inputs.addon_discovery }}
-
-      - name: Push bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        run: docker push ${operator_bundle}
-
-      - name: Install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
-        with:
-          bundle_image: ${{ inputs.operator_bundle == '' && env.operator_bundle || inputs.operator_bundle }}
           namespace: ${{ inputs.namespace }}
           tackle_cr: ${{ inputs.tackle_cr }}
-      # end DRY
 
       - uses: actions/setup-go@v5
         with:
@@ -408,44 +414,13 @@ jobs:
     #       - ${{ inputs.ui_test_tags }}
 
     steps:
-      # TODO Should DRY this
-      - name: set up docker buildx
-        if: ${{ inputs.artifact != '' }}
-        uses: docker/setup-buildx-action@v2
-
-      - name: Start minikube
-        uses: konveyor/tackle2-operator/.github/actions/start-minikube@main
+      - name: Setup Konveyor
+        uses: mguetta1/ci/setup-konveyor-minikube@global-ci-bundle
         with:
-          memory: 'max'
-          cpus: 'max'
-
-      - name: Download artifact
-        if: ${{ inputs.artifact != '' }}
-        id: download-artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact }}
-          path: /tmp/container_images
-
-      - name: Load images
-        if: ${{ inputs.artifact != '' }}
-        env:
-          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
-        run: |
-          eval $(minikube -p minikube docker-env)
-          for image in $(
-            find "${IMAGES_PATH}" -type f -name "*.tar"
-          ); do
-            echo "Loading image \`${image}\`" >>"$GITHUB_STEP_SUMMARY"
-            docker load --input ${image}
-          done
-
-      - name: Make bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        uses: konveyor/tackle2-operator/.github/actions/make-bundle@main
-        with:
-          operator_bundle: ${{ env.operator_bundle }}
-          operator: quay.io/konveyor/tackle2-operator:${{ inputs.base_tag }}
+          artifact: ${{ inputs.artifact }}
+          operator_bundle: ${{ inputs.operator_bundle }}
+          operator_bundle_fallback: ${{ env.operator_bundle }}
+          base_tag: ${{ inputs.base_tag }}
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
@@ -454,15 +429,6 @@ jobs:
           tackle_ui: ${{ inputs.tackle_ui }}
           addon_analyzer: ${{ inputs.addon_analyzer }}
           addon_discovery: ${{ inputs.addon_discovery }}
-
-      - name: Push bundle
-        if: ${{ inputs.operator_bundle == '' }}
-        run: docker push ${operator_bundle}
-
-      - name: Install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-konveyor@main
-        with:
-          bundle_image: ${{ inputs.operator_bundle == '' && env.operator_bundle || inputs.operator_bundle }}
           namespace: ${{ inputs.namespace }}
           tackle_cr: ${{ inputs.tackle_cr }}
 
@@ -477,7 +443,6 @@ jobs:
           ingress_ip=$(kubectl get ingress/tackle -n konveyor-tackle -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "ingress is ready at: ${ingress_ip}"
           echo "UI_URL=https://${ingress_ip}" >>$GITHUB_ENV
-      # end DRY
 
       - name: Extract pull request number from inputs or PR description
         shell: bash
@@ -498,3 +463,163 @@ jobs:
           test_tags: ${{ inputs.ui_test_tags }}
           tests_ref: ${{ env.UI_TESTS_REF }}
           base_url: ${{ env.UI_URL }}
+
+  koncur-hub-tests:
+    needs: check-images
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run_koncur_hub_tests }}
+    steps:
+      - name: Checkout CI repo
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/ci
+
+      - name: Setup Konveyor
+        uses: mguetta1/ci/setup-konveyor-minikube@global-ci-bundle
+        with:
+          artifact: ${{ inputs.artifact }}
+          operator_bundle: ${{ inputs.operator_bundle }}
+          operator_bundle_fallback: ${{ env.operator_bundle }}
+          base_tag: ${{ inputs.base_tag }}
+          oauth_proxy: ${{ inputs.oauth_proxy }}
+          tackle_hub: ${{ inputs.tackle_hub }}
+          tackle_postgres: ${{ inputs.tackle_postgres }}
+          keycloak_sso: ${{ inputs.keycloak_sso }}
+          keycloak_init: ${{ inputs.keycloak_init }}
+          tackle_ui: ${{ inputs.tackle_ui }}
+          addon_analyzer: ${{ inputs.addon_analyzer }}
+          addon_discovery: ${{ inputs.addon_discovery }}
+          namespace: ${{ inputs.namespace }}
+          tackle_cr: ${{ inputs.tackle_cr }}
+
+      - name: Checkout koncur
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/koncur
+          ref: ${{ inputs.koncur_ref }}
+          path: koncur
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build Koncur
+        run: |
+          cd koncur
+          go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Start port-forward
+        run: |
+          kubectl port-forward -n konveyor-tackle svc/tackle-hub 8081:8080 &
+          sleep 5
+
+      - name: Create Hub target config
+        run: |
+          mkdir -p .koncur/config
+          cat > .koncur/config/target-tackle-hub.yaml << 'EOF'
+          type: tackle-hub
+          tackleHub:
+            url: http://localhost:8081
+          EOF
+
+      - name: Run Koncur Hub tests
+        working-directory: koncur
+        env:
+          SKIP_MAVEN: ${{ inputs.koncur_skip_maven }}
+        run: koncur run tests -t tackle-hub --target-config ../.koncur/config/target-tackle-hub.yaml -o yaml --output-file test-hub.yaml
+
+      - name: Upload result yaml
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: koncur-hub-summary
+          path: koncur/test-hub.yaml
+          retention-days: 3
+
+  koncur-kantra-tests:
+    needs: check-images
+    runs-on: ${{ matrix.runner }}
+    if: ${{ inputs.run_koncur_kantra_tests }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-24.04-arm
+          - os: windows
+            runner: windows-latest
+    steps:
+      - name: Download and install kantra (linux)
+        if: ${{ matrix.os == 'linux' }}
+        run: |
+          KANTRA_IMAGE="$KANTRA_INPUT"
+          if [ -z "$KANTRA_IMAGE" ]; then
+            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
+          fi
+          mkdir -p $HOME/.local/bin
+          podman cp "$(podman create --name kantra-download "$KANTRA_IMAGE")":/usr/local/bin/kantra $HOME/.local/bin/kantra
+          podman rm kantra-download
+          chmod +x $HOME/.local/bin/kantra
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install podman (windows)
+        if: ${{ matrix.os == 'windows' }}
+        shell: bash
+        run: |
+          choco install podman-cli
+          podman machine init --rootful --memory 10240 --cpus 3
+          podman machine start
+
+      - name: Download and install kantra (windows)
+        if: ${{ matrix.os == 'windows' }}
+        shell: bash
+        run: |
+          KANTRA_IMAGE="$KANTRA_INPUT"
+          if [ -z "$KANTRA_IMAGE" ]; then
+            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
+          fi
+          mkdir -p $HOME/.local/bin
+          podman cp "$(podman create --name kantra-download "$KANTRA_IMAGE")":/usr/local/bin/windows-kantra $HOME/.local/bin/kantra.exe
+          podman rm kantra-download
+
+      - name: Add local bin to path (windows)
+        if: ${{ matrix.os == 'windows' }}
+        shell: powershell
+        run: |
+          $newPath = "$env:USERPROFILE\.local\bin"
+          Write-Output "$newPath" >> $env:GITHUB_PATH
+
+      - name: Checkout koncur
+        uses: actions/checkout@v4
+        with:
+          repository: konveyor/koncur
+          ref: ${{ inputs.koncur_ref }}
+          path: koncur
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build Koncur
+        shell: bash
+        run: |
+          cd koncur
+          go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
+
+      - name: Run Koncur Kantra tests
+        shell: bash
+        working-directory: koncur
+        env:
+          SKIP_MAVEN: ${{ inputs.koncur_skip_maven }}
+        run: koncur run tests -t kantra -o yaml --output-file test-kantra.yaml
+
+      - name: Upload result yaml
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: koncur-kantra-${{ matrix.os }}-summary
+          path: koncur/test-kantra.yaml
+          retention-days: 3
