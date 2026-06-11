@@ -53,7 +53,7 @@ inputs:
   namespace:
     description: Namespace for the konveyor install
     required: false
-    default: ""
+    default: "konveyor-tackle"
   tackle_cr:
     description: Full YAML/JSON string representing the Tackle resource to create
     required: false

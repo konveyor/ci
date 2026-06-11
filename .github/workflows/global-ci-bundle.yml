@@ -260,6 +260,8 @@ on:
 
 env:
   operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:4h
+  KANTRA_INPUT: ${{ inputs.kantra }}
+  BASE_TAG_INPUT: ${{ inputs.base_tag }}
 
 jobs:
   check-images:
@@ -310,11 +312,11 @@ jobs:
       - name: Check kantra image exists
         if: ${{ inputs.run_koncur_kantra_tests }}
         run: |
-          KANTRA_IMAGE="${{ inputs.kantra }}"
+          KANTRA_IMAGE="$KANTRA_INPUT"
           if [ -z "$KANTRA_IMAGE" ]; then
-            KANTRA_IMAGE="quay.io/konveyor/kantra:${{ inputs.base_tag }}"
+            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
           fi
-          docker manifest inspect $KANTRA_IMAGE
+          docker manifest inspect "$KANTRA_IMAGE"
 
   e2e-api-integration-tests:
     needs: check-images
@@ -552,12 +554,12 @@ jobs:
       - name: Download and install kantra (linux)
         if: ${{ matrix.os == 'linux' }}
         run: |
-          KANTRA_IMAGE="${{ inputs.kantra }}"
+          KANTRA_IMAGE="$KANTRA_INPUT"
           if [ -z "$KANTRA_IMAGE" ]; then
-            KANTRA_IMAGE="quay.io/konveyor/kantra:${{ inputs.base_tag }}"
+            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
           fi
           mkdir -p $HOME/.local/bin
-          podman cp $(podman create --name kantra-download $KANTRA_IMAGE):/usr/local/bin/kantra $HOME/.local/bin/kantra
+          podman cp "$(podman create --name kantra-download "$KANTRA_IMAGE")":/usr/local/bin/kantra $HOME/.local/bin/kantra
           podman rm kantra-download
           chmod +x $HOME/.local/bin/kantra
           echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -574,12 +576,12 @@ jobs:
         if: ${{ matrix.os == 'windows' }}
         shell: bash
         run: |
-          KANTRA_IMAGE="${{ inputs.kantra }}"
+          KANTRA_IMAGE="$KANTRA_INPUT"
           if [ -z "$KANTRA_IMAGE" ]; then
-            KANTRA_IMAGE="quay.io/konveyor/kantra:${{ inputs.base_tag }}"
+            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
           fi
           mkdir -p $HOME/.local/bin
-          podman cp $(podman create --name kantra-download $KANTRA_IMAGE):/usr/local/bin/windows-kantra $HOME/.local/bin/kantra.exe
+          podman cp "$(podman create --name kantra-download "$KANTRA_IMAGE")":/usr/local/bin/windows-kantra $HOME/.local/bin/kantra.exe
           podman rm kantra-download
 
       - name: Add local bin to path (windows)
