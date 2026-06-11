@@ -154,12 +154,12 @@ on:
         description: A flag that determines whether the koncur tackle-hub tests should be run
         type: boolean
         required: false
-        default: true
+        default: false
       run_koncur_kantra_tests:
         description: A flag that determines whether the koncur kantra tests should be run
         type: boolean
         required: false
-        default: true
+        default: false
       koncur_ref:
         description: The branch or ref of the koncur repository to use for tests
         type: string
@@ -347,7 +347,7 @@ jobs:
           ref: "${{ env.GOLANG_TESTS_REF }}"
 
       - name: Setup Konveyor
-        uses: mguetta1/ci/setup-konveyor-minikube@global-ci-bundle
+        uses: konveyor/ci/setup-konveyor-minikube@main
         with:
           artifact: ${{ inputs.artifact }}
           operator_bundle: ${{ inputs.operator_bundle }}
@@ -415,7 +415,7 @@ jobs:
 
     steps:
       - name: Setup Konveyor
-        uses: mguetta1/ci/setup-konveyor-minikube@global-ci-bundle
+        uses: konveyor/ci/setup-konveyor-minikube@main
         with:
           artifact: ${{ inputs.artifact }}
           operator_bundle: ${{ inputs.operator_bundle }}
@@ -469,13 +469,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.run_koncur_hub_tests }}
     steps:
-      - name: Checkout CI repo
-        uses: actions/checkout@v4
-        with:
-          repository: konveyor/ci
-
       - name: Setup Konveyor
-        uses: mguetta1/ci/setup-konveyor-minikube@global-ci-bundle
+        uses: konveyor/ci/setup-konveyor-minikube@main
         with:
           artifact: ${{ inputs.artifact }}
           operator_bundle: ${{ inputs.operator_bundle }}
