@@ -464,8 +464,27 @@ jobs:
           tests_ref: ${{ env.UI_TESTS_REF }}
           base_url: ${{ env.UI_URL }}
 
+  extract-koncur-ref:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run_koncur_hub_tests || inputs.run_koncur_kantra_tests }}
+    outputs:
+      koncur_ref: ${{ steps.extract.outputs.koncur_ref }}
+    steps:
+      - name: Extract koncur pull request number from inputs or PR description
+        id: extract
+        env:
+          body: ${{ github.event.pull_request.body }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[K|k]oncur [P|p][R|r]:\s*\K\d+' || true)
+          [ -z "$PULL_REQUEST_NUMBER" ] \
+            && KONCUR_REF=${{ inputs.koncur_ref }} \
+            || KONCUR_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
+
+          echo "koncur_ref=${KONCUR_REF}" >>"$GITHUB_OUTPUT"
+          echo "Using KONCUR_REF \`${KONCUR_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
   koncur-hub-tests:
-    needs: check-images
+    needs: [check-images, extract-koncur-ref]
     runs-on: ubuntu-latest
     if: ${{ inputs.run_koncur_hub_tests }}
     steps:
@@ -491,7 +510,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: konveyor/koncur
-          ref: ${{ inputs.koncur_ref }}
+          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
           path: koncur
 
       - name: Setup Go
@@ -534,7 +553,7 @@ jobs:
           retention-days: 3
 
   koncur-kantra-tests:
-    needs: check-images
+    needs: [check-images, extract-koncur-ref]
     runs-on: ${{ matrix.runner }}
     if: ${{ inputs.run_koncur_kantra_tests }}
     strategy:
@@ -590,7 +609,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: konveyor/koncur
-          ref: ${{ inputs.koncur_ref }}
+          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
           path: koncur
 
       - name: Setup Go
