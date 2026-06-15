@@ -141,6 +141,14 @@ UI tests PR: 233
 
 replacing `233` with the appropriate [konveyor/tackle-ui-tests](https://github.com/konveyor/tackle-ui-tests) pull request number for your tests.
 
+To replace the `koncur-hub-tests` and `koncur-kantra-tests` reference, add the following string to your PR description:
+
+```
+Koncur PR: 233
+```
+
+replacing `233` with the appropriate [konveyor/koncur](https://github.com/konveyor/koncur) pull request number for your tests.
+
 
 ## Code of Conduct
 Refer to Konveyor's Code of Conduct [here](https://github.com/konveyor/community/blob/main/CODE_OF_CONDUCT.md).

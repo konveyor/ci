@@ -55,3 +55,5 @@ jobs:
       artifact: test-images
       run_api_tests: true
       run_ui_tests: true
+      run_koncur_hub_tests: true
+      run_koncur_kantra_tests: true
