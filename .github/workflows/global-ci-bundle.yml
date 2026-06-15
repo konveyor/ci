@@ -262,6 +262,7 @@ env:
   operator_bundle: ttl.sh/konveyor-operator-bundle-${{ github.sha }}:4h
   KANTRA_INPUT: ${{ inputs.kantra }}
   BASE_TAG_INPUT: ${{ inputs.base_tag }}
+  KONCUR_REF_INPUT: ${{ inputs.koncur_ref }}
 
 jobs:
   check-images:
@@ -477,7 +478,7 @@ jobs:
         run: |
           PULL_REQUEST_NUMBER=$(echo ${body} | grep -oP '[K|k]oncur [P|p][R|r]:\s*\K\d+' || true)
           [ -z "$PULL_REQUEST_NUMBER" ] \
-            && KONCUR_REF=${{ inputs.koncur_ref }} \
+            && KONCUR_REF="$KONCUR_REF_INPUT" \
             || KONCUR_REF=refs/pull/$PULL_REQUEST_NUMBER/merge
 
           echo "koncur_ref=${KONCUR_REF}" >>"$GITHUB_OUTPUT"
