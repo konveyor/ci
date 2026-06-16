@@ -563,8 +563,6 @@ jobs:
         include:
           - os: linux
             runner: ubuntu-24.04-arm
-          - os: windows
-            runner: windows-latest
     steps:
       - name: Download and install kantra (linux)
         if: ${{ matrix.os == 'linux' }}
@@ -578,33 +576,6 @@ jobs:
           podman rm kantra-download
           chmod +x $HOME/.local/bin/kantra
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Install podman (windows)
-        if: ${{ matrix.os == 'windows' }}
-        shell: bash
-        run: |
-          choco install podman-cli
-          podman machine init --rootful --memory 10240 --cpus 3
-          podman machine start
-
-      - name: Download and install kantra (windows)
-        if: ${{ matrix.os == 'windows' }}
-        shell: bash
-        run: |
-          KANTRA_IMAGE="$KANTRA_INPUT"
-          if [ -z "$KANTRA_IMAGE" ]; then
-            KANTRA_IMAGE="quay.io/konveyor/kantra:${BASE_TAG_INPUT}"
-          fi
-          mkdir -p $HOME/.local/bin
-          podman cp "$(podman create --name kantra-download "$KANTRA_IMAGE")":/usr/local/bin/windows-kantra $HOME/.local/bin/kantra.exe
-          podman rm kantra-download
-
-      - name: Add local bin to path (windows)
-        if: ${{ matrix.os == 'windows' }}
-        shell: powershell
-        run: |
-          $newPath = "$env:USERPROFILE\.local\bin"
-          Write-Output "$newPath" >> $env:GITHUB_PATH
 
       - name: Checkout koncur
         uses: actions/checkout@v4
