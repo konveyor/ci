@@ -490,6 +490,22 @@ jobs:
           echo "koncur_ref=${KONCUR_REF}" >>"$GITHUB_OUTPUT"
           echo "Using KONCUR_REF \`${KONCUR_REF}\`" >>"$GITHUB_STEP_SUMMARY"
 
+# See https://github.com/konveyor/ci/issues/224
+  setup-kantra-matrix:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run_koncur_kantra_tests }}
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix based on inputs
+        id: set-matrix
+        run: |
+          if [[ "${{ inputs.run_windows_kantra_tests }}" == "true" ]]; then
+            echo 'matrix={"include":[{"os":"linux","runner":"ubuntu-24.04-arm"},{"os":"windows","runner":"windows-latest"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"include":[{"os":"linux","runner":"ubuntu-24.04-arm"}]}' >> "$GITHUB_OUTPUT"
+          fi
+
   koncur-hub-tests:
     needs: [check-images, extract-koncur-ref]
     runs-on: ubuntu-latest
@@ -560,18 +576,11 @@ jobs:
           retention-days: 3
 
   koncur-kantra-tests:
-    needs: [check-images, extract-koncur-ref]
+    needs: [check-images, extract-koncur-ref, setup-kantra-matrix]
     runs-on: ${{ matrix.runner }}
-#   See https://github.com/konveyor/ci/issues/224
-    if: ${{ inputs.run_koncur_kantra_tests && (matrix.os != 'windows' || inputs.run_windows_kantra_tests) }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: linux
-            runner: ubuntu-24.04-arm
-          - os: windows
-            runner: windows-latest
+      matrix: ${{ fromJSON(needs.setup-kantra-matrix.outputs.matrix) }}
     steps:
       - name: Download and install kantra (linux)
         if: ${{ matrix.os == 'linux' }}
