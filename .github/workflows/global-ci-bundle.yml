@@ -160,6 +160,12 @@ on:
         type: boolean
         required: false
         default: false
+#     See https://github.com/konveyor/ci/issues/224
+      run_windows_kantra_tests:
+        description: A flag that determines whether to run Windows kantra tests (Linux always runs if run_koncur_kantra_tests is true)
+        type: boolean
+        required: false
+        default: true
       koncur_ref:
         description: The branch or ref of the koncur repository to use for tests
         type: string
@@ -556,7 +562,8 @@ jobs:
   koncur-kantra-tests:
     needs: [check-images, extract-koncur-ref]
     runs-on: ${{ matrix.runner }}
-    if: ${{ inputs.run_koncur_kantra_tests }}
+#   See https://github.com/konveyor/ci/issues/224
+    if: ${{ inputs.run_koncur_kantra_tests && (matrix.os != 'windows' || inputs.run_windows_kantra_tests) }}
     strategy:
       fail-fast: false
       matrix:
