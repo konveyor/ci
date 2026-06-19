@@ -17,21 +17,7 @@ Component test suites that should use those shared tests are:
     └── test_cases.yaml          # analysis test cases definition (top level keys should match to directory names with expected results)
 ```
 
-```
-# tc.yaml
----
-description: <description of the test, could be just name of the app or more detailed>
-input: <input application to be analyzed, absolute link to e.g. github or local path for binary relative to this file>
-sources: <array of sources, use [] if empty>
-targets: <array of targets, use [] if empty>
-options: <optional array of name,value pairs, e.g. for maven settings file and other advanced options>
-# Example:
-#- name: maven-settings
-#  value: ./settings.yaml
-
-```
-
-Check out [book-server test case](analysis_book-server/) as an example.
+Check out [test cases.yml](test_cases.yml)
 
 ## Notes
 
