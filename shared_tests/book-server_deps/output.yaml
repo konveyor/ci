@@ -217,27 +217,31 @@
         url: https://quarkus.io/guides/maven-tooling#build-tool-maven;
     springboot-annotations-to-quarkus-00000:
       category: mandatory
-      description: Remove the SpringBoot @SpringBootApplication annotation
+      description: Replace SpringBootApplication bootstrap model with Quarkus bootstrap
+        and CDI
       effort: 1
       incidents:
       - codeSnip: 6  @SpringBootApplication
         lineNumber: 6
-        message: "Remove the SpringBoot @SpringBootApplication annotation.\n\n A Spring\
-          \ Boot application contains a \"main\" class with the @SpringBootApplication\
-          \ annotation. A Quarkus application does not have such a class. Two different\
-          \ alternatives can be followed - either\n to remove the \"main\" class associated\
-          \ with the annotation, or add the `org.springframework.boot:spring-boot-autoconfigure`\
-          \ dependency as an `optional` Maven dependency. An optional dependency \n\
-          \ is available when an application compiles but is not packaged with the\
-          \ application at runtime. Doing this would allow the application to compile\
-          \ without modification, but you\n would also need to maintain a Spring version\
-          \ along with the Quarkus application."
+        message: "Remove or refactor the SpringBoot `@SpringBootApplication` bootstrap model for Quarkus.\n\n\
+          `@SpringBootApplication` combines three concerns; in Quarkus they map differently:\n\
+          - `@EnableAutoConfiguration`: Quarkus configures features by adding Quarkus extensions at build time (no Spring Boot auto-configuration runtime model).\n\
+          - `@ComponentScan`: Quarkus uses CDI bean discovery with bean-defining annotations (for example `@ApplicationScoped`, `@Singleton`), not Spring component scanning semantics.\n\
+          - `@SpringBootConfiguration`: use CDI scopes and producer methods (`@Produces`) for bean registration; for tests, use Quarkus testing patterns instead of Spring Boot configuration detection.\n\n\
+          If needed as an intermediate step, keeping `org.springframework.boot:spring-boot-autoconfigure` as `optional` may allow compilation, but this keeps Spring compatibility baggage and should not be the target end state."
         uri: src/main/java/com/telran/application/BookServerApp.java
       labels:
       - konveyor.io/source=springboot
       - konveyor.io/target=quarkus
+      links:
+      - title: Quarkus CDI reference
+        url: https://quarkus.io/guides/cdi-reference
+      - title: Quarkus Spring DI guide
+        url: https://quarkus.io/guides/spring-di
+      - title: Quarkus testing guide
+        url: https://quarkus.io/guides/getting-started-testing
     springboot-di-to-quarkus-00000:
-      category: potential
+      category: mandatory
       description: Replace the SpringBoot Dependency Injection artifact with Quarkus
         'spring-di' extension
       effort: 1
