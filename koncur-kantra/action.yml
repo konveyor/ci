@@ -36,9 +36,13 @@ runs:
       if: ${{ inputs.os == 'windows' }}
       shell: bash
       run: |
-        choco install podman-cli
+        for i in {1..3}; do
+          choco install podman-cli && break
+          echo "Chocolatey install failed (attempt $i/3), retrying in 30s..."
+          sleep 30
+        done
         podman machine init --rootful --memory 10240 --cpus 3
-        podman machine start 
+        podman machine start
 
     - name: Also add local/bin to windows path and get host wsl ip 
       if: ${{ inputs.os == 'windows' }}
