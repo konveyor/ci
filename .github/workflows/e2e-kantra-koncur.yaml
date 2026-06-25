@@ -39,7 +39,7 @@ jobs:
           - os: "macos"
             runner: "macos-26-large"
           - os: "windows"
-            runner: "windows-latest"
+            runner: "windows-2022"
         exclude:
           - os: 
               os: "macos"

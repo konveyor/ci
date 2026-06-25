@@ -501,7 +501,7 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ inputs.run_windows_kantra_tests }}" == "true" ]]; then
-            echo 'matrix={"include":[{"os":"linux","runner":"ubuntu-24.04-arm"},{"os":"windows","runner":"windows-latest"}]}' >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[{"os":"linux","runner":"ubuntu-24.04-arm"},{"os":"windows","runner":"windows-2022"}]}' >> "$GITHUB_OUTPUT"
           else
             echo 'matrix={"include":[{"os":"linux","runner":"ubuntu-24.04-arm"}]}' >> "$GITHUB_OUTPUT"
           fi
