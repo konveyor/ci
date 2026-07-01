@@ -189,9 +189,11 @@ If image download fails or no pattern is provided:
 
 ### 4. Install Tackle Hub
 
-Installs the Tackle Hub operator and components using `make hub-install` from Koncur.
+Installs the Tackle Hub operator and components using `make hub-install-auth` from Koncur (the auth-enabled step from `make setup-auth`).
 
 The environment variables from image loading are passed to the installation, allowing custom images to be used instead of the defaults.
+
+After installation, the action adds `127.0.0.1 tackle.local` to `/etc/hosts` and reconfigures Keycloak to use `https://tackle.local:8443/auth` so Hub is reached at `https://tackle.local:8443/hub` instead of `http://localhost:8080`.
 
 ### 5. Wait for Readiness
 
@@ -202,12 +204,7 @@ Waits for Hub to be fully operational:
      -n konveyor-tackle --timeout=300s
    ```
 
-2. **Port forwarding**: Forwards Hub service to `localhost:8081`
-   ```bash
-   kubectl port-forward -n konveyor-tackle svc/tackle-hub 8081:8080
-   ```
-
-3. **API availability**: Polls the `/applications` endpoint until it responds (up to 2.5 minutes)
+2. **Ingress readiness**: Polls `https://tackle.local:8443/hub/applications` until it responds (up to 2.5 minutes)
 
 ### 6. Maven Configuration (Optional)
 
@@ -222,7 +219,10 @@ If `skip_maven: false`:
    ```yaml
    type: tackle-hub
    tackleHub:
-     url: http://localhost:8081
+     url: https://tackle.local:8443/hub
+     username: admin
+     password: admin
+     insecure: true
      mavenSettings: '/path/to/settings.xml'
    ```
 
@@ -280,12 +280,14 @@ The action automatically outputs this information on failure.
 
 ### Port Forward Fails
 
-**Issue**: Cannot connect to Hub API on localhost:8081
+**Issue**: Cannot connect to Hub API on `https://tackle.local:8443`
 
-**Solution**: Verify the service exists and has endpoints:
+**Solution**: Verify `/etc/hosts` contains `127.0.0.1 tackle.local`, then check ingress and Keycloak:
 ```bash
-kubectl get svc -n konveyor-tackle tackle-hub
-kubectl get endpoints -n konveyor-tackle tackle-hub
+grep tackle.local /etc/hosts
+kubectl get ingress -n konveyor-tackle
+kubectl get pods -n konveyor-tackle -l app.kubernetes.io/name=tackle-keycloak-sso
+curl -skf https://tackle.local:8443/hub/applications
 ```
 
 ### Maven Tests Fail
@@ -370,11 +372,11 @@ See [shared_tests/README.md](../shared_tests/README.md) for more information on 
 │  │  │                                               │  │ │
 │  │  └──────────────────────────────────────────────┘  │ │
 │  │                                                     │ │
-│  │  Port Forward: 8081 → tackle-hub:8080              │ │
+│  │  Ingress: https://tackle.local:8443 (Hub + Keycloak) │ │
 │  └────────────────────────────────────────────────────┘ │
 │                                                          │
 │  HTTP Server: :8085 (Maven local resources)             │
-│  Koncur CLI → http://localhost:8081 (Hub API)           │
+│  Koncur CLI → https://tackle.local:8443/hub             │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```

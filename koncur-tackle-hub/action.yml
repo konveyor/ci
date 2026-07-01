@@ -78,7 +78,7 @@ runs:
       run: |
         ${GITHUB_ACTION_PATH}/check_images.sh
 
-    - name: Install Tackle Hub
+    - name: Install Tackle Hub with auth
       shell: bash
       env:
         RUNNER_IMG: ${{ env.RUNNER_IMG }}
@@ -89,7 +89,27 @@ runs:
         DISCOVERY_ADDON: ${{ env.DISCOVERY_ADDON }}
         PLATFORM_ADDON: ${{ env.PLATFORM_ADDON }}
         HUB: ${{ env.HUB }}
-      run: make hub-install
+        TACKLE_ADMIN_USER: admin
+        TACKLE_ADMIN_PASS: admin
+      run: make hub-install-auth
+
+    - name: Configure tackle.local in hosts
+      shell: bash
+      run: |
+        if ! grep -q '[[:space:]]tackle\.local$' /etc/hosts; then
+          echo "127.0.0.1 tackle.local" | sudo tee -a /etc/hosts
+        fi
+        grep tackle.local /etc/hosts
+
+    - name: Configure Keycloak for tackle.local
+      shell: bash
+      run: |
+        kubectl set env deployment/tackle-keycloak-sso -n konveyor-tackle \
+          KC_HOSTNAME=https://tackle.local:8443/auth \
+          KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true
+        kubectl patch deployment tackle-keycloak-sso -n konveyor-tackle --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["-Djgroups.dns.query=mta-kc-discovery.openshift-mta", "--verbose", "start", "--hostname=https://tackle.local:8443/auth", "--hostname-backchannel-dynamic=true"]}]'
+        kubectl rollout status deployment/tackle-keycloak-sso -n konveyor-tackle --timeout=180s
+        kubectl rollout status deployment/tackle-hub -n konveyor-tackle --timeout=120s
 
     - name: Wait for Hub readiness
       shell: bash
@@ -97,17 +117,15 @@ runs:
         echo "Waiting for all Tackle Hub pods to be ready..."
         kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=tackle-hub \
           -n konveyor-tackle --timeout=300s
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=tackle-keycloak-sso \
+          -n konveyor-tackle --timeout=300s
 
-    - name: Start port-forward
+    - name: Wait for Hub API (auth)
       shell: bash
       run: |
-        echo "Starting port-forward to Tackle Hub..."
-        kubectl port-forward -n konveyor-tackle svc/tackle-hub 8081:8080 &
-        sleep 5
-
-        echo "Checking Hub API availability..."
+        echo "Checking Hub API availability via ingress..."
         for i in $(seq 1 30); do
-          if curl -sf http://localhost:8081/applications > /dev/null 2>&1; then
+          if curl -skf https://tackle.local:8443/hub/applications > /dev/null 2>&1; then
             echo "Hub API is ready"
             exit 0
           fi
@@ -156,7 +174,10 @@ runs:
         mkdir -p .koncur/config
         printf 'type: tackle-hub\n' > .koncur/config/target-tackle-hub.yaml
         printf 'tackleHub:\n' >> .koncur/config/target-tackle-hub.yaml
-        printf '  url: http://localhost:8081\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  url: https://tackle.local:8443/hub\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  username: admin\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  password: admin\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  insecure: true\n' >> .koncur/config/target-tackle-hub.yaml
         printf '  mavenSettings: "%s"\n' "${{ runner.temp }}/settings.xml" >> .koncur/config/target-tackle-hub.yaml
 
     - name: Create Hub target config (no maven)
@@ -166,7 +187,10 @@ runs:
         mkdir -p .koncur/config
         printf 'type: tackle-hub\n' > .koncur/config/target-tackle-hub.yaml
         printf 'tackleHub:\n' >> .koncur/config/target-tackle-hub.yaml
-        printf '  url: http://localhost:8081\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  url: https://tackle.local:8443/hub\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  username: admin\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  password: admin\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  insecure: true\n' >> .koncur/config/target-tackle-hub.yaml
 
     - name: Run test
       shell: bash
