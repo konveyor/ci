@@ -30,12 +30,16 @@ inputs:
     description: Image URI for tackle-postgres
     required: false
     default: ""
+  # BACKCOMPAT: The operator no longer deploys Keycloak on main (auth moved to the
+  # hub's built-in OIDC provider in tackle2-operator#567), so these inputs are
+  # ignored there. Kept so operator bundles from pre-hub-IdP branches (base_tag =
+  # release-0.9 and earlier) can still be built; delete once those are retired.
   keycloak_sso:
-    description: Image URI for keycloak_sso
+    description: "DEPRECATED - ignored on operator main; only used when base_tag points at a pre-hub-IdP operator branch (e.g. release-0.9)"
     required: false
     default: ""
   keycloak_init:
-    description: Image URI for keycloak_init
+    description: "DEPRECATED - ignored on operator main; only used when base_tag points at a pre-hub-IdP operator branch (e.g. release-0.9)"
     required: false
     default: ""
   tackle_ui:
@@ -121,6 +125,8 @@ runs:
         oauth_proxy: ${{ inputs.oauth_proxy }}
         tackle_hub: ${{ inputs.tackle_hub }}
         tackle_postgres: ${{ inputs.tackle_postgres }}
+        # BACKCOMPAT: only used when base_tag points at a pre-hub-IdP operator
+        # branch (e.g. release-0.9); operator@main's make-bundle ignores these.
         keycloak_sso: ${{ inputs.keycloak_sso }}
         keycloak_init: ${{ inputs.keycloak_init }}
         tackle_ui: ${{ inputs.tackle_ui }}

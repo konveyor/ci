@@ -195,7 +195,7 @@ Installs the Tackle Hub operator and components using `make hub-install-auth` fr
 
 The environment variables from image loading are passed to the installation, allowing custom images to be used instead of the defaults.
 
-After installation, the action adds `127.0.0.1 tackle.local` to `/etc/hosts` and reconfigures Keycloak to use `https://tackle.local:8443/auth` so Hub is reached at `https://tackle.local:8443/hub` instead of `http://localhost:8080`.
+Auth is provided by the Hub's built-in OIDC provider, which seeds a default `admin`/`admin` user — no separate identity server is deployed. The action reaches the Hub via `kubectl port-forward svc/tackle-hub 8081:8080` at `http://localhost:8081`.
 
 ### 5. Wait for Readiness
 
@@ -206,7 +206,7 @@ Waits for Hub to be fully operational:
      -n konveyor-tackle --timeout=300s
    ```
 
-2. **Ingress readiness**: Polls `https://tackle.local:8443/hub/applications` until it responds (up to 2.5 minutes)
+2. **API readiness**: Polls `http://localhost:8081/applications` with Basic auth (`admin`/`admin`) until it responds (up to 2.5 minutes), and asserts that an unauthenticated request is rejected with `401` (proving auth is enforced)
 
 ### 6. Maven Configuration (Optional)
 
@@ -221,10 +221,9 @@ If `skip_maven: false`:
    ```yaml
    type: tackle-hub
    tackleHub:
-     url: https://tackle.local:8443/hub
+     url: http://localhost:8081
      username: admin
      password: admin
-     insecure: true
      mavenSettings: '/path/to/settings.xml'
    ```
 
@@ -284,14 +283,14 @@ The action automatically outputs this information on failure.
 
 ### Port Forward Fails
 
-**Issue**: Cannot connect to Hub API on `https://tackle.local:8443`
+**Issue**: Cannot connect to Hub API on `http://localhost:8081`
 
-**Solution**: Verify `/etc/hosts` contains `127.0.0.1 tackle.local`, then check ingress and Keycloak:
+**Solution**: Verify the Hub pod is ready and the port-forward is running, then check auth:
 ```bash
-grep tackle.local /etc/hosts
-kubectl get ingress -n konveyor-tackle
-kubectl get pods -n konveyor-tackle -l app.kubernetes.io/name=tackle-keycloak-sso
-curl -skf https://tackle.local:8443/hub/applications
+kubectl get pods -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub
+curl -sf -u admin:admin http://localhost:8081/applications
+# Without credentials this should return 401 (auth enforced):
+curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/applications
 ```
 
 ### Maven Tests Fail
@@ -369,18 +368,17 @@ See [shared_tests/README.md](../shared_tests/README.md) for more information on 
 │  │  │ Kubernetes Cluster (koncur-test)             │  │ │
 │  │  │                                               │  │ │
 │  │  │  Namespace: konveyor-tackle                   │  │ │
-│  │  │  ├─ tackle-hub (deployment)                   │  │ │
+│  │  │  ├─ tackle-hub (deployment, built-in OIDC)    │  │ │
 │  │  │  ├─ tackle-postgres (statefulset)             │  │ │
-│  │  │  ├─ tackle-keycloak (deployment)              │  │ │
 │  │  │  └─ analyzer-addon (taskgroup/pods)           │  │ │
 │  │  │                                               │  │ │
 │  │  └──────────────────────────────────────────────┘  │ │
 │  │                                                     │ │
-│  │  Ingress: https://tackle.local:8443 (Hub + Keycloak) │ │
+│  │  Port-forward: svc/tackle-hub 8081:8080            │ │
 │  └────────────────────────────────────────────────────┘ │
 │                                                          │
 │  HTTP Server: :8085 (Maven local resources)             │
-│  Koncur CLI → https://tackle.local:8443/hub             │
+│  Koncur CLI → http://localhost:8081 (Basic admin/admin) │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```
