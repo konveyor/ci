@@ -120,9 +120,64 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     # Check if any downloads succeeded
     if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
         echo ""
-        echo "Error: No artifacts were successfully downloaded (they may have expired)"
+        echo "Warning: No artifacts were successfully downloaded (they may have expired)"
+        echo "Attempting to pull missing images from registry as fallback..."
         rm -rf "$TEMP_DIR"
-        exit 1
+
+        PULL_TAG="${FALLBACK_TAG:-latest}"
+        # Strip common git ref prefixes so full refs like refs/heads/main become valid tags
+        PULL_TAG="${PULL_TAG#refs/heads/}"
+        PULL_TAG="${PULL_TAG#refs/tags/}"
+        if [[ "$PULL_TAG" == *"/"* ]]; then
+            echo "Error: FALLBACK_TAG '$PULL_TAG' contains '/' and is not a valid image tag"
+            exit 1
+        fi
+        PULL_SUCCESS=0
+        for img in "${MISSING[@]}"; do
+            echo "Pulling $img:$PULL_TAG..."
+            if podman pull "$img:$PULL_TAG" 2>&1; then
+                echo "Successfully pulled $img:$PULL_TAG"
+                PULL_SUCCESS=1
+
+                NEW_TAG="$img:$PULL_TAG"
+                if [ -n "$FOUND_TAG" ] && [ "$PULL_TAG" != "$FOUND_TAG" ]; then
+                    NEW_TAG="$img:$FOUND_TAG"
+                    echo "Re-tagging to: $NEW_TAG"
+                    podman tag "$img:$PULL_TAG" "$NEW_TAG"
+                fi
+
+                if [[ "$img" =~ $kantra_image_regex ]]; then
+                    echo "RUNNER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $java_provider_image_regex ]]; then
+                    echo "JAVA_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $c_sharp_provider_image_regex ]]; then
+                    echo "CSHARP_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $go_provider_image_regex ]]; then
+                    echo "GO_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $python_provider_image_regex ]]; then
+                    echo "PYTHON_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $nodejs_provider_image_regex ]]; then
+                    echo "NODEJS_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+            else
+                echo "Failed to pull $img:$PULL_TAG"
+            fi
+        done
+
+        if [ $PULL_SUCCESS -eq 0 ]; then
+            echo ""
+            echo "Error: Could not download artifacts or pull images from registry"
+            exit 1
+        fi
+
+        echo ""
+        echo "Registry pull complete. Re-checking images..."
+        exec "$0"
     fi
 
     # Load downloaded images into podman and optionally re-tag
