@@ -125,6 +125,13 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         rm -rf "$TEMP_DIR"
 
         PULL_TAG="${FALLBACK_TAG:-latest}"
+        # Strip common git ref prefixes so full refs like refs/heads/main become valid tags
+        PULL_TAG="${PULL_TAG#refs/heads/}"
+        PULL_TAG="${PULL_TAG#refs/tags/}"
+        if [[ "$PULL_TAG" == *"/"* ]]; then
+            echo "Error: FALLBACK_TAG '$PULL_TAG' contains '/' and is not a valid image tag"
+            exit 1
+        fi
         PULL_SUCCESS=0
         for img in "${MISSING[@]}"; do
             echo "Pulling $img:$PULL_TAG..."
