@@ -134,16 +134,38 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         fi
         PULL_SUCCESS=0
         for img in "${MISSING[@]}"; do
+            PULLED=0
+            ACTUAL_TAG=""
+
+            # Try to pull with PULL_TAG first
             echo "Pulling $img:$PULL_TAG..."
             if podman pull "$img:$PULL_TAG" 2>&1; then
                 echo "Successfully pulled $img:$PULL_TAG"
-                PULL_SUCCESS=1
+                PULLED=1
+                ACTUAL_TAG="$PULL_TAG"
+            else
+                echo "Failed to pull $img:$PULL_TAG"
 
-                NEW_TAG="$img:$PULL_TAG"
-                if [ -n "$FOUND_TAG" ] && [ "$PULL_TAG" != "$FOUND_TAG" ]; then
+                # If PULL_TAG is not "latest", try "latest" as fallback
+                if [ "$PULL_TAG" != "latest" ]; then
+                    echo "Attempting fallback to $img:latest..."
+                    if podman pull "$img:latest" 2>&1; then
+                        echo "Successfully pulled $img:latest"
+                        PULLED=1
+                        ACTUAL_TAG="latest"
+                    else
+                        echo "Failed to pull $img:latest"
+                    fi
+                fi
+            fi
+
+            if [ $PULLED -eq 1 ]; then
+                PULL_SUCCESS=1
+                NEW_TAG="$img:$ACTUAL_TAG"
+                if [ -n "$FOUND_TAG" ] && [ "$ACTUAL_TAG" != "$FOUND_TAG" ]; then
                     NEW_TAG="$img:$FOUND_TAG"
                     echo "Re-tagging to: $NEW_TAG"
-                    podman tag "$img:$PULL_TAG" "$NEW_TAG"
+                    podman tag "$img:$ACTUAL_TAG" "$NEW_TAG"
                 fi
 
                 if [[ "$img" =~ $kantra_image_regex ]]; then
@@ -164,8 +186,6 @@ if [ ${#MISSING[@]} -gt 0 ]; then
                 if [[ "$img" =~ $nodejs_provider_image_regex ]]; then
                     echo "NODEJS_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
                 fi
-            else
-                echo "Failed to pull $img:$PULL_TAG"
             fi
         done
 
