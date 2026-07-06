@@ -38,13 +38,19 @@ on:
         type: string
         required: false
         default: ""
+      # BACKCOMPAT: The operator no longer deploys Keycloak on main (auth moved to
+      # the hub's built-in OIDC provider in tackle2-operator#567), so these inputs
+      # are ignored there. They only matter when base_tag points at a pre-hub-IdP
+      # operator branch (e.g. release-0.9). They stay declared because removing a
+      # workflow_call input hard-errors any caller that still passes it; delete them
+      # once release-0.9 flows are retired and callers are confirmed clean.
       keycloak_sso:
-        description: image uri for keycloak_sso image (ie. quay.io/<namespace>/<image-name>:<tag>)
+        description: "DEPRECATED - ignored on operator main; only meaningful with a pre-hub-IdP operator branch (e.g. release-0.9)"
         type: string
         required: false
         default: ""
       keycloak_init:
-        description: image uri for keycloak_init image (ie. quay.io/<namespace>/<image-name>:<tag>)
+        description: "DEPRECATED - ignored on operator main; only meaningful with a pre-hub-IdP operator branch (e.g. release-0.9)"
         type: string
         required: false
         default: ""
@@ -301,6 +307,8 @@ jobs:
       - name: Check tackle_postgres image exists
         if: ${{ inputs.tackle_postgres != '' }}
         run: docker manifest inspect ${{ inputs.tackle_postgres }}
+      # BACKCOMPAT: keycloak inputs are only set when targeting a pre-hub-IdP
+      # operator branch (e.g. release-0.9); these are no-ops when empty.
       - name: Check keycloak_sso image exists
         if: ${{ inputs.keycloak_sso != '' }}
         run: docker manifest inspect ${{ inputs.keycloak_sso }}
@@ -363,6 +371,7 @@ jobs:
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
+          # BACKCOMPAT: only used when a pre-hub-IdP operator (e.g. release-0.9) is targeted
           keycloak_sso: ${{ inputs.keycloak_sso }}
           keycloak_init: ${{ inputs.keycloak_init }}
           tackle_ui: ${{ inputs.tackle_ui }}
@@ -431,6 +440,7 @@ jobs:
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
+          # BACKCOMPAT: only used when a pre-hub-IdP operator (e.g. release-0.9) is targeted
           keycloak_sso: ${{ inputs.keycloak_sso }}
           keycloak_init: ${{ inputs.keycloak_init }}
           tackle_ui: ${{ inputs.tackle_ui }}
@@ -521,6 +531,7 @@ jobs:
           oauth_proxy: ${{ inputs.oauth_proxy }}
           tackle_hub: ${{ inputs.tackle_hub }}
           tackle_postgres: ${{ inputs.tackle_postgres }}
+          # BACKCOMPAT: only used when a pre-hub-IdP operator (e.g. release-0.9) is targeted
           keycloak_sso: ${{ inputs.keycloak_sso }}
           keycloak_init: ${{ inputs.keycloak_init }}
           tackle_ui: ${{ inputs.tackle_ui }}

@@ -35,5 +35,5 @@ jobs:
         uses: konveyor/ci/koncur-tackle-hub@main
         with:
           image_pattern: |
-            *{tackle-keycloak-init,tackle2-*,provider}--${{ github.run_id }}
+            *{tackle2-*,provider}--${{ github.run_id }}
           ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
