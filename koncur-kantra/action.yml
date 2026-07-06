@@ -36,7 +36,12 @@ runs:
       if: ${{ inputs.os == 'windows' }}
       shell: bash
       run: |
-        choco install podman-cli
+        for i in {1..3}; do
+          # Pinned to 5.8.1 to work around SSH connection failures with Podman 6.0 on Windows
+          choco install podman-cli --version=5.8.1 && break
+          echo "Chocolatey install failed (attempt $i/3), retrying in 30s..."
+          sleep 30
+        done
         podman machine init --rootful --memory 10240 --cpus 3
         podman machine start 
 
