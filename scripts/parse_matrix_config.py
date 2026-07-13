@@ -291,9 +291,12 @@ def organize_by_levels(
                 ):
                     has_matching_descendant = True
 
-        # Include this job if it matches or we're already including (parent matched)
-        # Don't include just because of matching descendants
-        if matches or include:
+        # Include this job if it matches, we're already including (parent matched),
+        # or a filtered descendant needs this job's image built first (PR builds).
+        needs_build_for_descendant = (
+            repo_filter is not None and has_matching_descendant and not matches
+        )
+        if matches or include or needs_build_for_descendant:
             job_copy = {k: v for k, v in job.items() if k != "dependent_jobs"}
 
             # Add base_image field for dependent jobs
