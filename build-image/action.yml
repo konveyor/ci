@@ -1,4 +1,5 @@
 name: Build Image
+description: Build a container image with podman and upload it as a workflow artifact
 
 inputs:
   repo:
@@ -95,6 +96,7 @@ runs:
 
     - name: If no base image in current run get nightly
       id: download-nightly
+      continue-on-error: true
       if: ${{ steps.download-artifact.outcome == 'failure' }}
       env:
         GH_TOKEN: ${{ github.token }}
@@ -104,11 +106,32 @@ runs:
         ARTIFACT_PREFIX="${BASE_IMG%--*}"
         echo "Attempting to get base image from nightly: $BASE_IMG"
         WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
-        gh run download -R konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]" --dir /tmp/base_images 
+        gh run download -R konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]" --dir /tmp/base_images
         echo "download-path=/tmp/base_images" >> $GITHUB_OUTPUT
 
+    - name: Fall back to pulling jdtls-server-base from registry
+      id: pull-jdtls-base
+      if: ${{ steps.download-artifact.outcome == 'failure' && steps.download-nightly.outcome == 'failure' && inputs.base_image != '' && contains(inputs.base_image, 'jdtls-server-base') }}
+      shell: bash
+      run: |
+        BASE_IMG="${{ inputs.base_image }}"
+        ARTIFACT_PREFIX="${BASE_IMG%--*}"
+        IMAGE_NAME="${ARTIFACT_PREFIX//_//}"
+
+        echo "Attempting to pull ${IMAGE_NAME}:main from registry"
+
+        if podman pull "${IMAGE_NAME}:main"; then
+          EXPECTED_TAG="${{ inputs.image_tag }}"
+          BASE_TAG="${EXPECTED_TAG%_*}"
+          podman tag "${IMAGE_NAME}:main" "${IMAGE_NAME}:${BASE_TAG}"
+          echo "base_image=${IMAGE_NAME}:${BASE_TAG}" >> "$GITHUB_OUTPUT"
+        else
+          echo "Failed to pull ${IMAGE_NAME}:main from registry"
+          exit 1
+        fi
+
     - name: Load base image into podman
-      if: "${{ inputs.base_image != '' }}"
+      if: "${{ inputs.base_image != '' && steps.pull-jdtls-base.outcome != 'success' }}"
       id: load-base-image
       shell: bash
       env:
@@ -180,7 +203,9 @@ runs:
         fi
 
         if [ -n "${{ inputs.base_image_arg }}" ]; then
-          BUILD_ARGS="${BUILD_ARGS} --build-arg ${{ inputs.base_image_arg }}=${{ steps.load-base-image.outputs.base_image }}"
+          BASE_IMG_REF="${{ steps.load-base-image.outputs.base_image }}"
+          BASE_IMG_REF="${BASE_IMG_REF:-${{ steps.pull-jdtls-base.outputs.base_image }}}"
+          BUILD_ARGS="${BUILD_ARGS} --build-arg ${{ inputs.base_image_arg }}=${BASE_IMG_REF}"
         fi
 
         echo "Building image: ${IMAGE_NAME}:${IMAGE_TAG} manifest list"
