@@ -112,23 +112,55 @@ runs:
     - name: Fall back to pulling jdtls-server-base from registry
       id: pull-jdtls-base
       if: ${{ steps.download-artifact.outcome == 'failure' && steps.download-nightly.outcome == 'failure' && inputs.base_image != '' && contains(inputs.base_image, 'jdtls-server-base') }}
+      env:
+        FALLBACK_TAG: ${{ inputs.ref }}
       shell: bash
       run: |
         BASE_IMG="${{ inputs.base_image }}"
         ARTIFACT_PREFIX="${BASE_IMG%--*}"
         IMAGE_NAME="${ARTIFACT_PREFIX//_//}"
 
-        echo "Attempting to pull ${IMAGE_NAME}:main from registry"
+        PULL_TAG="${FALLBACK_TAG:-latest}"
+        # Strip common git ref prefixes so full refs like refs/heads/main become valid tags
+        PULL_TAG="${PULL_TAG#refs/heads/}"
+        PULL_TAG="${PULL_TAG#refs/tags/}"
+        if [[ "$PULL_TAG" == *"/"* ]]; then
+          echo "Warning: FALLBACK_TAG '$PULL_TAG' is not a valid image tag, using latest"
+          PULL_TAG="latest"
+        fi
 
-        if podman pull "${IMAGE_NAME}:main"; then
-          EXPECTED_TAG="${{ inputs.image_tag }}"
-          BASE_TAG="${EXPECTED_TAG%_*}"
-          podman tag "${IMAGE_NAME}:main" "${IMAGE_NAME}:${BASE_TAG}"
-          echo "base_image=${IMAGE_NAME}:${BASE_TAG}" >> "$GITHUB_OUTPUT"
+        PULLED=0
+        ACTUAL_TAG=""
+
+        echo "Attempting to pull ${IMAGE_NAME}:${PULL_TAG} from registry"
+        if podman pull "${IMAGE_NAME}:${PULL_TAG}"; then
+          echo "Successfully pulled ${IMAGE_NAME}:${PULL_TAG}"
+          PULLED=1
+          ACTUAL_TAG="$PULL_TAG"
         else
-          echo "Failed to pull ${IMAGE_NAME}:main from registry"
+          echo "Failed to pull ${IMAGE_NAME}:${PULL_TAG}"
+
+          if [ "$PULL_TAG" != "latest" ]; then
+            echo "Attempting fallback to ${IMAGE_NAME}:latest..."
+            if podman pull "${IMAGE_NAME}:latest"; then
+              echo "Successfully pulled ${IMAGE_NAME}:latest"
+              PULLED=1
+              ACTUAL_TAG="latest"
+            else
+              echo "Failed to pull ${IMAGE_NAME}:latest"
+            fi
+          fi
+        fi
+
+        if [ $PULLED -eq 0 ]; then
+          echo "Error: Could not download artifacts or pull ${IMAGE_NAME} from registry"
           exit 1
         fi
+
+        EXPECTED_TAG="${{ inputs.image_tag }}"
+        BASE_TAG="${EXPECTED_TAG%_*}"
+        podman tag "${IMAGE_NAME}:${ACTUAL_TAG}" "${IMAGE_NAME}:${BASE_TAG}"
+        echo "base_image=${IMAGE_NAME}:${BASE_TAG}" >> "$GITHUB_OUTPUT"
 
     - name: Load base image into podman
       if: "${{ inputs.base_image != '' && steps.pull-jdtls-base.outcome != 'success' }}"
