@@ -296,10 +296,9 @@ def organize_by_levels(
         if matches or include:
             job_copy = {k: v for k, v in job.items() if k != "dependent_jobs"}
 
-            # Add base_image field for dependent jobs only if parent was included
-            # If include=True, it means the parent matched and will be built
-            # If include=False, the parent is skipped, so use nightly image instead
-            if parent_image and include:
+            # Set base_image when the parent is part of this build, or when this job
+            # matches the filter but depends on an image built elsewhere in the tree
+            if parent_image and (include or matches):
                 parent_image = parent_image.replace("/", "_")
                 if base_image_tag:
                     job_copy["base_image"] = f"{parent_image}--{base_image_tag}"
