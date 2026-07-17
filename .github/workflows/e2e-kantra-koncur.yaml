@@ -27,9 +27,31 @@ jobs:
       ref: ${{ inputs.ref || github.ref }}
     secrets: inherit
 
+  extract-koncur-ref:
+    runs-on: ubuntu-latest
+    outputs:
+      koncur_ref: ${{ steps.extract.outputs.koncur_ref }}
+    steps:
+      - name: Extract koncur pull request number from PR description
+        id: extract
+        env:
+          body: ${{ github.event.pull_request.body }}
+          DEFAULT_REF: ${{ github.base_ref || inputs.ref || github.ref_name || 'main' }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo "$body" | grep -oP '[Kk]oncur [Pp][Rr]:\s*\K\d+' || true)
+          if [ -z "$PULL_REQUEST_NUMBER" ]; then
+            KONCUR_REF="$DEFAULT_REF"
+          else
+            KONCUR_REF="refs/pull/${PULL_REQUEST_NUMBER}/merge"
+          fi
+
+          echo "koncur_ref=${KONCUR_REF}" >>"$GITHUB_OUTPUT"
+          echo "Using KONCUR_REF \`${KONCUR_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
   run-koncur-action:
     needs:
     - build-images
+    - extract-koncur-ref
     strategy:
       fail-fast: false
       matrix:
@@ -53,5 +75,4 @@ jobs:
           os: ${{ matrix.os.os }}
           image_pattern: |
             *{kantra,provider}--${{ github.run_id }}
-          ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
-
+          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
