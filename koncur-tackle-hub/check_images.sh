@@ -114,10 +114,9 @@ if [ ${#MISSING[@]} -gt 0 ]; then
             PATTERN="${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]"
             echo "  Downloading manifest list artifact matching: ${PATTERN}"
 
-            OUTPUT=$(gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "$PATTERN" --dir "$TEMP_DIR" 2>&1)
-            EXIT_CODE=$?
-
-            if [ $EXIT_CODE -ne 0 ]; then
+            if OUTPUT=$(gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "$PATTERN" --dir "$TEMP_DIR" 2>&1); then
+                echo "  Successfully downloaded artifact for $img"
+            else
                 if ! echo "$OUTPUT" | grep -q "no artifact matches"; then
                     echo "  Error downloading artifact for $img:"
                     echo "  $OUTPUT"
@@ -125,8 +124,6 @@ if [ ${#MISSING[@]} -gt 0 ]; then
                 echo "  Warning: Could not download artifact for $img from run $WORKFLOW_RUN"
                 RUN_DOWNLOAD_OK=0
                 break
-            else
-                echo "  Successfully downloaded artifact for $img"
             fi
         done
 
