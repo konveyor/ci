@@ -69,17 +69,16 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         echo "Will re-tag downloaded images to match: $FOUND_TAG"
     fi
 
-    echo "Attempting to download missing images from last successful nightly run..."
+    echo "Attempting to download missing images from a recent nightly run..."
 
-    # Find the last successful run of the nightly workflow on main branch
-    WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --branch=main --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+    # Find recent nightly runs (any status — image builds often succeed even when
+    # unrelated test jobs fail, and --status=success would skip those runs entirely)
+    WORKFLOW_RUNS=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --branch=main --limit=10 --json databaseId --jq '.[].databaseId')
 
-    if [ -z "$WORKFLOW_RUN" ]; then
-        echo "Error: Could not find a successful nightly workflow run"
+    if [ -z "$WORKFLOW_RUNS" ]; then
+        echo "Error: Could not find any nightly workflow runs"
         exit 1
     fi
-
-    echo "Found successful workflow run: $WORKFLOW_RUN"
 
     # Create temp directory for downloads
     TEMP_DIR=$(mktemp -d)
@@ -87,40 +86,47 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 
     DOWNLOAD_SUCCESS=0
 
-    # Download artifacts for missing images (manifest lists only, not arch-specific)
-    for img in "${MISSING[@]}"; do
-        # Convert image name to artifact naming pattern
-        # quay.io/konveyor/kantra -> quay.io_konveyor_kantra
-        ARTIFACT_PREFIX="${img//\//_}"
+    # Try each recent run until we find one with non-expired artifacts
+    for WORKFLOW_RUN in $WORKFLOW_RUNS; do
+        echo "Trying workflow run: $WORKFLOW_RUN"
+        RUN_DOWNLOAD_OK=1
 
-        # Download only the manifest list (without _amd64 or _arm64 suffix)
-        # Pattern matches: quay.io_konveyor_kantra--main_2026.02.18
-        # But NOT: quay.io_konveyor_kantra--main_2026.02.18_amd64
-        PATTERN="${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]"
-        echo "Downloading manifest list artifact matching: ${PATTERN}"
-        
-        # Use a more specific pattern that excludes architecture suffixes
-        # We want artifacts that end with a date pattern, not _amd64/_arm64
-        OUTPUT=$(gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "$PATTERN" --dir "$TEMP_DIR" 2>&1)
-        EXIT_CODE=$?
-        
-        if [ $EXIT_CODE -eq 0 ]; then
-            DOWNLOAD_SUCCESS=1
-            echo "Successfully downloaded artifact for $img"
-        else
-            # Only show error if it's not the expected "no artifact matches" message
-            if ! echo "$OUTPUT" | grep -q "no artifact matches"; then
-                echo "Error downloading artifact for $img:"
-                echo "$OUTPUT"
+        for img in "${MISSING[@]}"; do
+            ARTIFACT_PREFIX="${img//\//_}"
+
+            # Download only the manifest list (without _amd64 or _arm64 suffix)
+            # Pattern matches: quay.io_konveyor_kantra--main_2026.02.18
+            # But NOT: quay.io_konveyor_kantra--main_2026.02.18_amd64
+            PATTERN="${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]"
+            echo "  Downloading manifest list artifact matching: ${PATTERN}"
+
+            if OUTPUT=$(gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "$PATTERN" --dir "$TEMP_DIR" 2>&1); then
+                echo "  Successfully downloaded artifact for $img"
+            else
+                if ! echo "$OUTPUT" | grep -q "no artifact matches"; then
+                    echo "  Error downloading artifact for $img:"
+                    echo "  $OUTPUT"
+                fi
+                echo "  Warning: Could not download artifact for $img from run $WORKFLOW_RUN"
+                RUN_DOWNLOAD_OK=0
+                break
             fi
-            echo "Warning: Could not download manifest list artifact for $img"
+        done
+
+        if [ $RUN_DOWNLOAD_OK -eq 1 ]; then
+            DOWNLOAD_SUCCESS=1
+            echo "All missing image artifacts found in run $WORKFLOW_RUN"
+            break
         fi
+
+        # Clean up partial downloads before trying next run
+        rm -rf "${TEMP_DIR:?}"/*
     done
 
     # Check if any downloads succeeded
     if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
         echo ""
-        echo "Warning: No artifacts were successfully downloaded (they may have expired)"
+        echo "Warning: No artifacts were successfully downloaded from any recent nightly run (they may have expired)"
         echo "Attempting to pull missing images from registry as fallback..."
         rm -rf "$TEMP_DIR"
 
@@ -253,5 +259,37 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 else
     echo "------------------------------------------------------------"
     echo "Status: All required images are present"
+
+    # Set environment variables for all found images to ensure they're available in subsequent steps
+    for img_info in "${FOUND[@]}"; do
+        # Extract image name with tag from the "image: found_image" format
+        IMAGE=$(echo "$img_info" | awk '{print $NF}')
+
+        if [[ "$IMAGE" =~ $kantra_image_regex ]]; then
+            echo "Setting RUNNER_IMG=$IMAGE"
+            echo "RUNNER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $java_provider_image_regex ]]; then
+            echo "Setting JAVA_PROVIDER_IMG=$IMAGE"
+            echo "JAVA_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $c_sharp_provider_image_regex ]]; then
+            echo "Setting CSHARP_PROVIDER_IMG=$IMAGE"
+            echo "CSHARP_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $go_provider_image_regex ]]; then
+            echo "Setting GO_PROVIDER_IMG=$IMAGE"
+            echo "GO_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $python_provider_image_regex ]]; then
+            echo "Setting PYTHON_PROVIDER_IMG=$IMAGE"
+            echo "PYTHON_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $nodejs_provider_image_regex ]]; then
+            echo "Setting NODEJS_PROVIDER_IMG=$IMAGE"
+            echo "NODEJS_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+    done
+
     exit 0
 fi
