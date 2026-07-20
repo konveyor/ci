@@ -1,20 +1,19 @@
 name: Koncur Tackle Hub
-on:
-  workflow_call:
-    inputs:
-      skip_maven:
-        description: "Whether to setup access to the testing maven packages"
-        default: true
-        type: boolean
-      image_pattern:
-        description: The pattern used to download the image's that have been built to test
-        required: false
-        type: string
-      ref:
-        description: The ref of koncur to use for testing
-        required: false
-        type: string
-        default: main
+
+inputs:
+  skip_maven:
+    description: "Whether to setup access to the testing maven packages"
+    default: true
+    type: boolean
+  image_pattern:
+    description: The pattern used to download the image's that have been built to test
+    required: false
+    type: string
+  ref:
+    description: The ref of koncur to use for testing
+    required: false
+    type: string
+    default: main
 
 runs:
   using: "composite"
