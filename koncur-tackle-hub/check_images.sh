@@ -30,35 +30,30 @@ echo "------------------------------------------------------------"
 # Get list of all images in Kind cluster
 IMAGES=$(docker exec koncur-test-control-plane crictl images -o json | jq -r '.images[] | .repoTags[]' 2>/dev/null)
 
-if [ -z "$IMAGES" ]; then
-    echo "No images found in Kind cluster."
-    echo ""
-    echo "Missing images:"
-    for img in "${REQUIRED_IMAGES[@]}"; do
-        echo "  - $img"
-    done
-    exit 1
-fi
-
 MISSING=()
 FOUND=()
 FOUND_TAG=""
 
-# Check each required image
-for required in "${REQUIRED_IMAGES[@]}"; do
-    if echo "$IMAGES" | grep -qi "$required"; then
-        MATCHED=$(echo "$IMAGES" | grep -i "$required" | head -n 1)
-        FOUND+=("$required: $MATCHED")
+if [ -z "$IMAGES" ]; then
+    echo "No images found in Kind cluster."
+    MISSING=("${REQUIRED_IMAGES[@]}")
+else
+    # Check each required image
+    for required in "${REQUIRED_IMAGES[@]}"; do
+        if echo "$IMAGES" | grep -qi "$required"; then
+            MATCHED=$(echo "$IMAGES" | grep -i "$required" | head -n 1)
+            FOUND+=("$required: $MATCHED")
 
-        # Extract tag from the first found image
-        if [ -z "$FOUND_TAG" ]; then
-            FOUND_TAG=$(echo "$MATCHED" | cut -d':' -f2)
-            echo "Extracted tag from found image: $FOUND_TAG"
+            # Extract tag from the first found image
+            if [ -z "$FOUND_TAG" ]; then
+                FOUND_TAG=$(echo "$MATCHED" | cut -d':' -f2)
+                echo "Extracted tag from found image: $FOUND_TAG"
+            fi
+        else
+            MISSING+=("$required")
         fi
-    else
-        MISSING+=("$required")
-    fi
-done
+    done
+fi
 
 # Display found images
 if [ ${#FOUND[@]} -gt 0 ]; then
