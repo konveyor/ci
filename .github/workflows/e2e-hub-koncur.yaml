@@ -27,13 +27,36 @@ jobs:
       ref: ${{ inputs.ref || github.ref }}
     secrets: inherit
 
+  extract-koncur-ref:
+    runs-on: ubuntu-latest
+    outputs:
+      koncur_ref: ${{ steps.extract.outputs.koncur_ref }}
+    steps:
+      - name: Extract koncur pull request number from PR description
+        id: extract
+        env:
+          body: ${{ github.event.pull_request.body }}
+          DEFAULT_REF: ${{ github.base_ref || inputs.ref || github.ref_name || 'main' }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo "$body" | grep -oP '[Kk]oncur [Pp][Rr]:\s*\K\d+' || true)
+          if [ -z "$PULL_REQUEST_NUMBER" ]; then
+            KONCUR_REF="$DEFAULT_REF"
+          else
+            KONCUR_REF="refs/pull/${PULL_REQUEST_NUMBER}/merge"
+          fi
+
+          echo "koncur_ref=${KONCUR_REF}" >>"$GITHUB_OUTPUT"
+          echo "Using KONCUR_REF \`${KONCUR_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
   run-koncur-action:
     runs-on: ubuntu-latest
-    needs: build-images
+    needs:
+    - build-images
+    - extract-koncur-ref
     steps:
       - name: Run Koncur Testing
         uses: konveyor/ci/koncur-tackle-hub@main
         with:
           image_pattern: |
             *{tackle2-*,provider}--${{ github.run_id }}
-          ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
+          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
