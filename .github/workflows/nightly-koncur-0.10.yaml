@@ -1,0 +1,13 @@
+name: Run Koncur nightly (Release 0.10)
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    uses: konveyor/ci/.github/workflows/nightly-koncur.yaml@main
+    with:
+      branch: release-0.10
+    secrets: inherit
