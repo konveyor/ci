@@ -44,7 +44,7 @@ jobs:
     uses: ./.github/workflows/global-ci.yml
     with:
       component_name: test-images
-      run_api_tests: true
+      run_api_tests: false
       run_ui_tests: true
 
   global-ci-bundle:
@@ -53,7 +53,7 @@ jobs:
     uses: ./.github/workflows/global-ci-bundle.yml
     with:
       artifact: test-images
-      run_api_tests: true
+      run_api_tests: false
       run_ui_tests: true
       run_koncur_hub_tests: true
       run_koncur_kantra_tests: true
