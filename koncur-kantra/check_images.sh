@@ -66,9 +66,25 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 
     echo "Attempting to download missing images from a recent nightly run..."
 
+    # Determine the correct nightly workflow based on FALLBACK_TAG.
+    # Release branches use version-specific workflows (e.g. nightly-koncur-0.9.yaml).
+    NIGHTLY_WORKFLOW="nightly-koncur.yaml"
+    if [ -n "$FALLBACK_TAG" ] && [ "$FALLBACK_TAG" != "main" ] && [ "$FALLBACK_TAG" != "latest" ]; then
+        CLEAN_TAG="${FALLBACK_TAG#refs/heads/}"
+        CLEAN_TAG="${CLEAN_TAG#refs/tags/}"
+        VERSION="${CLEAN_TAG#release-}"
+        if [ "$VERSION" != "$CLEAN_TAG" ]; then
+            CANDIDATE="nightly-koncur-${VERSION}.yaml"
+            if gh run list -R=konveyor/ci --workflow="$CANDIDATE" --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null | grep -q .; then
+                NIGHTLY_WORKFLOW="$CANDIDATE"
+                echo "Using versioned nightly workflow: $NIGHTLY_WORKFLOW"
+            fi
+        fi
+    fi
+
     # Find recent nightly runs (any status — image builds often succeed even when
     # unrelated test jobs fail, and --status=success would skip those runs entirely)
-    WORKFLOW_RUNS=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --branch=main --limit=10 --json databaseId --jq '.[].databaseId')
+    WORKFLOW_RUNS=$(gh run list -R=konveyor/ci --workflow="$NIGHTLY_WORKFLOW" --branch=main --limit=10 --json databaseId --jq '.[].databaseId')
 
     if [ -z "$WORKFLOW_RUNS" ]; then
         echo "Error: Could not find any nightly workflow runs"
