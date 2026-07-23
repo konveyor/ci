@@ -75,9 +75,16 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         VERSION="${CLEAN_TAG#release-}"
         if [ "$VERSION" != "$CLEAN_TAG" ]; then
             CANDIDATE="nightly-koncur-${VERSION}.yaml"
-            if gh run list -R=konveyor/ci --workflow="$CANDIDATE" --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null | grep -q .; then
-                NIGHTLY_WORKFLOW="$CANDIDATE"
-                echo "Using versioned nightly workflow: $NIGHTLY_WORKFLOW"
+            PROBE_OUTPUT=""
+            if PROBE_OUTPUT=$(gh run list -R=konveyor/ci --workflow="$CANDIDATE" --branch=main --limit=1 --json databaseId --jq '.[0].databaseId' 2>&1); then
+                if [ -n "$PROBE_OUTPUT" ] && [ "$PROBE_OUTPUT" != "null" ]; then
+                    NIGHTLY_WORKFLOW="$CANDIDATE"
+                    echo "Using versioned nightly workflow: $NIGHTLY_WORKFLOW"
+                else
+                    echo "Versioned workflow $CANDIDATE exists but has no runs on main, using default"
+                fi
+            else
+                echo "Could not query workflow $CANDIDATE (gh error: $PROBE_OUTPUT), using default"
             fi
         fi
     fi
