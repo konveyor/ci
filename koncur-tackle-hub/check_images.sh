@@ -80,9 +80,32 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 
     echo "Attempting to download missing images from a recent nightly run..."
 
+    # Determine the correct nightly workflow based on FALLBACK_TAG.
+    # Release branches use version-specific workflows (e.g. nightly-koncur-0.9.yaml).
+    NIGHTLY_WORKFLOW="nightly-koncur.yaml"
+    if [ -n "$FALLBACK_TAG" ] && [ "$FALLBACK_TAG" != "main" ] && [ "$FALLBACK_TAG" != "latest" ]; then
+        CLEAN_TAG="${FALLBACK_TAG#refs/heads/}"
+        CLEAN_TAG="${CLEAN_TAG#refs/tags/}"
+        VERSION="${CLEAN_TAG#release-}"
+        if [ "$VERSION" != "$CLEAN_TAG" ]; then
+            CANDIDATE="nightly-koncur-${VERSION}.yaml"
+            PROBE_OUTPUT=""
+            if PROBE_OUTPUT=$(gh run list -R=konveyor/ci --workflow="$CANDIDATE" --branch=main --limit=1 --json databaseId --jq '.[0].databaseId' 2>&1); then
+                if [ -n "$PROBE_OUTPUT" ] && [ "$PROBE_OUTPUT" != "null" ]; then
+                    NIGHTLY_WORKFLOW="$CANDIDATE"
+                    echo "Using versioned nightly workflow: $NIGHTLY_WORKFLOW"
+                else
+                    echo "Versioned workflow $CANDIDATE exists but has no runs on main, using default"
+                fi
+            else
+                echo "Could not query workflow $CANDIDATE (gh error: $PROBE_OUTPUT), using default"
+            fi
+        fi
+    fi
+
     # Find recent nightly runs (any status — image builds often succeed even when
     # unrelated test jobs fail, and --status=success would skip those runs entirely)
-    WORKFLOW_RUNS=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --branch=main --limit=10 --json databaseId --jq '.[].databaseId')
+    WORKFLOW_RUNS=$(gh run list -R=konveyor/ci --workflow="$NIGHTLY_WORKFLOW" --branch=main --limit=10 --json databaseId --jq '.[].databaseId')
 
     if [ -z "$WORKFLOW_RUNS" ]; then
         echo "Error: Could not find any nightly workflow runs"
@@ -135,9 +158,87 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     # Check if any downloads succeeded
     if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
         echo ""
-        echo "Error: No artifacts were successfully downloaded from any recent nightly run (they may have expired)"
+        echo "Warning: No artifacts were successfully downloaded from any recent nightly run (they may have expired)"
+        echo "Attempting to pull missing images from registry as fallback..."
         rm -rf "$TEMP_DIR"
-        exit 1
+
+        PULL_TAG="${FALLBACK_TAG:-latest}"
+        PULL_TAG="${PULL_TAG#refs/heads/}"
+        PULL_TAG="${PULL_TAG#refs/tags/}"
+        if [[ "$PULL_TAG" == *"/"* ]]; then
+            echo "Error: FALLBACK_TAG '$PULL_TAG' contains '/' and is not a valid image tag"
+            exit 1
+        fi
+        CLUSTER_NAME=${CLUSTER_NAME:-koncur-test}
+        PULL_SUCCESS=0
+        for img in "${MISSING[@]}"; do
+            PULLED=0
+            ACTUAL_TAG=""
+
+            echo "Pulling $img:$PULL_TAG..."
+            if docker pull "$img:$PULL_TAG" 2>&1; then
+                echo "Successfully pulled $img:$PULL_TAG"
+                PULLED=1
+                ACTUAL_TAG="$PULL_TAG"
+            else
+                echo "Failed to pull $img:$PULL_TAG"
+                if [ "$PULL_TAG" != "latest" ]; then
+                    echo "Attempting fallback to $img:latest..."
+                    if docker pull "$img:latest" 2>&1; then
+                        echo "Successfully pulled $img:latest"
+                        PULLED=1
+                        ACTUAL_TAG="latest"
+                    else
+                        echo "Failed to pull $img:latest"
+                    fi
+                fi
+            fi
+
+            if [ $PULLED -eq 1 ]; then
+                PULL_SUCCESS=1
+                NEW_TAG="$img:$ACTUAL_TAG"
+                echo "Loading $NEW_TAG into Kind cluster..."
+                kind load docker-image "$NEW_TAG" --name "${CLUSTER_NAME}"
+
+                if [[ "$img" =~ $hub_regex ]]; then
+                    echo "HUB=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $addon_regex ]]; then
+                    echo "ANALYZER_ADDON=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $addon_discovery ]]; then
+                    echo "DISCOVERY_ADDON=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $addon_platform ]]; then
+                    echo "PLATFORM_ADDON=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $java_provider_image_regex ]]; then
+                    echo "JAVA_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $c_sharp_provider_image_regex ]]; then
+                    echo "CSHARP_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $go_provider_image_regex ]]; then
+                    echo "GO_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $python_provider_image_regex ]]; then
+                    echo "PYTHON_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+                if [[ "$img" =~ $nodejs_provider_image_regex ]]; then
+                    echo "NODEJS_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
+            fi
+        done
+
+        if [ $PULL_SUCCESS -eq 0 ]; then
+            echo ""
+            echo "Error: Could not download artifacts or pull images from registry"
+            exit 1
+        fi
+
+        echo ""
+        echo "Registry pull complete. Re-checking images..."
+        exec "$0"
     fi
 
     # Load downloaded images into Kind cluster and optionally re-tag
