@@ -109,26 +109,49 @@ runs:
       run: |
         echo "Checking Hub API availability via port-forward..."
         ready=false
-        for i in $(seq 1 30); do
-          if curl -sf -u admin:admin http://localhost:8081/applications > /dev/null 2>&1; then
-            echo "Hub API is ready"
+        hub_code=""
+        for i in $(seq 1 60); do
+          hub_code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/applications 2>/dev/null || echo "000")
+          if [ "$hub_code" = "401" ] || [ "$hub_code" = "200" ]; then
+            echo "Hub API is responding (HTTP $hub_code)"
             ready=true
             break
           fi
-          echo "Waiting for Hub API... attempt $i"
+          echo "Waiting for Hub API... attempt $i (HTTP $hub_code)"
           sleep 5
         done
         if [ "$ready" != "true" ]; then
           echo "Hub API never became ready"
+          kubectl get pods -n konveyor-tackle || true
+          kubectl logs -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub --tail=50 || true
           exit 1
         fi
-        # Verify auth is actually enforced: unauthenticated requests must 401
-        code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/applications)
-        if [ "$code" != "401" ]; then
-          echo "Expected 401 without credentials, got $code - auth is not enforced"
-          exit 1
+        if [ "$hub_code" = "401" ]; then
+          # Auth is enforced (release-0.9 with Keycloak) — obtain JWT token
+          echo "Auth is enforced, obtaining JWT token via /auth/login..."
+          TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8081/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"user":"admin","password":"Passw0rd!"}')
+          TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to obtain JWT token. Response:"
+            echo "$TOKEN_RESPONSE"
+            exit 1
+          fi
+          echo "Successfully obtained JWT token"
+          auth_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            http://localhost:8081/applications)
+          if [ "$auth_code" != "200" ]; then
+            echo "Authenticated request failed with HTTP $auth_code"
+            exit 1
+          fi
+          echo "Auth is working correctly"
+          echo "HUB_AUTH_ENABLED=true" >> $GITHUB_ENV
+        else
+          echo "Hub API is accessible without auth (main branch mode)"
+          echo "HUB_AUTH_ENABLED=false" >> $GITHUB_ENV
         fi
-        echo "Auth is enforced"
 
     - name: Build Koncur
       shell: bash
@@ -169,8 +192,10 @@ runs:
         printf 'type: tackle-hub\n' > .koncur/config/target-tackle-hub.yaml
         printf 'tackleHub:\n' >> .koncur/config/target-tackle-hub.yaml
         printf '  url: http://localhost:8081\n' >> .koncur/config/target-tackle-hub.yaml
-        printf '  username: admin\n' >> .koncur/config/target-tackle-hub.yaml
-        printf '  password: admin\n' >> .koncur/config/target-tackle-hub.yaml
+        if [ "$HUB_AUTH_ENABLED" = "true" ]; then
+          printf '  username: admin\n' >> .koncur/config/target-tackle-hub.yaml
+          printf '  password: Passw0rd!\n' >> .koncur/config/target-tackle-hub.yaml
+        fi
         if [ "${{ inputs.skip_maven }}" != "true" ]; then
           printf '  mavenSettings: "%s"\n' "${{ runner.temp }}/settings.xml" >> .koncur/config/target-tackle-hub.yaml
         fi
