@@ -84,6 +84,7 @@ runs:
         RUNNER_IMG: ${{ env.RUNNER_IMG }}
         JAVA_PROVIDER_IMG: ${{ env.JAVA_PROVIDER_IMG }}
         CSHARP_PROVIDER_IMG: ${{ env.CSHARP_PROVIDER_IMG }}
+        GENERIC_PROVIDER_IMG: ${{ env.GENERIC_PROVIDER_IMG }}
         GO_PROVIDER_IMG: ${{ env.GO_PROVIDER_IMG }}
         PYTHON_PROVIDER_IMG: ${{ env.PYTHON_PROVIDER_IMG }}
         NODEJS_PROVIDER_IMG: ${{ env.NODEJS_PROVIDER_IMG }}
@@ -106,29 +107,34 @@ runs:
 
     - name: Wait for Hub API (auth)
       shell: bash
+      env:
+        FALLBACK_TAG: ${{ inputs.ref }}
       run: |
+        CLEAN_FALLBACK="${FALLBACK_TAG#refs/heads/}"
+        CLEAN_FALLBACK="${CLEAN_FALLBACK#refs/tags/}"
         echo "Checking Hub API availability via port-forward..."
-        ready=false
-        hub_code=""
-        for i in $(seq 1 60); do
-          hub_code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/applications 2>/dev/null || echo "000")
-          if [ "$hub_code" = "401" ] || [ "$hub_code" = "200" ]; then
-            echo "Hub API is responding (HTTP $hub_code)"
-            ready=true
-            break
+        echo "Branch context: $CLEAN_FALLBACK"
+
+        if [ "$CLEAN_FALLBACK" = "release-0.9" ]; then
+          # release-0.9 uses Keycloak — wait for hub, then obtain JWT token
+          ready=false
+          for i in $(seq 1 60); do
+            hub_code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/applications 2>/dev/null) || hub_code="000"
+            if [ "$hub_code" = "401" ] || [ "$hub_code" = "200" ]; then
+              echo "Hub API is responding (HTTP $hub_code)"
+              ready=true
+              break
+            fi
+            echo "Waiting for Hub API... attempt $i (HTTP $hub_code)"
+            sleep 5
+          done
+          if [ "$ready" != "true" ]; then
+            echo "Hub API never became ready"
+            kubectl get pods -n konveyor-tackle || true
+            kubectl logs -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub --tail=50 || true
+            exit 1
           fi
-          echo "Waiting for Hub API... attempt $i (HTTP $hub_code)"
-          sleep 5
-        done
-        if [ "$ready" != "true" ]; then
-          echo "Hub API never became ready"
-          kubectl get pods -n konveyor-tackle || true
-          kubectl logs -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub --tail=50 || true
-          exit 1
-        fi
-        if [ "$hub_code" = "401" ]; then
-          # Auth is enforced (release-0.9 with Keycloak) — obtain JWT token
-          echo "Auth is enforced, obtaining JWT token via /auth/login..."
+          echo "Obtaining JWT token via /auth/login..."
           TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8081/auth/login \
             -H 'Content-Type: application/json' \
             -d '{"user":"admin","password":"Passw0rd!"}')
@@ -147,10 +153,26 @@ runs:
             exit 1
           fi
           echo "Auth is working correctly"
-          echo "HUB_AUTH_ENABLED=true" >> $GITHUB_ENV
+          echo "HUB_PASSWORD=Passw0rd!" >> $GITHUB_ENV
         else
-          echo "Hub API is accessible without auth (main branch mode)"
-          echo "HUB_AUTH_ENABLED=false" >> $GITHUB_ENV
+          # main and other branches use built-in auth with admin:admin
+          ready=false
+          for i in $(seq 1 30); do
+            if curl -sf -u admin:admin http://localhost:8081/applications > /dev/null 2>&1; then
+              echo "Hub API is ready"
+              ready=true
+              break
+            fi
+            echo "Waiting for Hub API... attempt $i"
+            sleep 5
+          done
+          if [ "$ready" != "true" ]; then
+            echo "Hub API never became ready"
+            kubectl get pods -n konveyor-tackle || true
+            kubectl logs -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub --tail=50 || true
+            exit 1
+          fi
+          echo "HUB_PASSWORD=admin" >> $GITHUB_ENV
         fi
 
     - name: Build Koncur
@@ -192,10 +214,8 @@ runs:
         printf 'type: tackle-hub\n' > .koncur/config/target-tackle-hub.yaml
         printf 'tackleHub:\n' >> .koncur/config/target-tackle-hub.yaml
         printf '  url: http://localhost:8081\n' >> .koncur/config/target-tackle-hub.yaml
-        if [ "$HUB_AUTH_ENABLED" = "true" ]; then
-          printf '  username: admin\n' >> .koncur/config/target-tackle-hub.yaml
-          printf '  password: Passw0rd!\n' >> .koncur/config/target-tackle-hub.yaml
-        fi
+        printf '  username: admin\n' >> .koncur/config/target-tackle-hub.yaml
+        printf '  password: %s\n' "$HUB_PASSWORD" >> .koncur/config/target-tackle-hub.yaml
         if [ "${{ inputs.skip_maven }}" != "true" ]; then
           printf '  mavenSettings: "%s"\n' "${{ runner.temp }}/settings.xml" >> .koncur/config/target-tackle-hub.yaml
         fi

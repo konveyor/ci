@@ -2,17 +2,35 @@
 
 set -e
 
-REQUIRED_IMAGES=(
-    "quay.io/konveyor/tackle2-hub"
-    "quay.io/konveyor/tackle2-addon-analyzer"
-    "quay.io/konveyor/tackle2-addon-discovery"
-    "quay.io/konveyor/tackle2-addon-platform"
-    "quay.io/konveyor/c-sharp-provider"
-    "quay.io/konveyor/java-external-provider"
-    "quay.io/konveyor/go-external-provider"
-    "quay.io/konveyor/python-external-provider"
-    "quay.io/konveyor/nodejs-external-provider"
-)
+CLEAN_FALLBACK="${FALLBACK_TAG#refs/heads/}"
+CLEAN_FALLBACK="${CLEAN_FALLBACK#refs/tags/}"
+
+if [ "$CLEAN_FALLBACK" = "release-0.9" ]; then
+    # release-0.9 uses generic-external-provider for python/go/nodejs analysis
+    REQUIRED_IMAGES=(
+        "quay.io/konveyor/tackle2-hub"
+        "quay.io/konveyor/tackle2-addon-analyzer"
+        "quay.io/konveyor/tackle2-addon-discovery"
+        "quay.io/konveyor/tackle2-addon-platform"
+        "quay.io/konveyor/c-sharp-provider"
+        "quay.io/konveyor/java-external-provider"
+        "quay.io/konveyor/generic-external-provider"
+    )
+else
+    # main and release-0.10+ use dedicated standalone providers
+    REQUIRED_IMAGES=(
+        "quay.io/konveyor/tackle2-hub"
+        "quay.io/konveyor/tackle2-addon-analyzer"
+        "quay.io/konveyor/tackle2-addon-discovery"
+        "quay.io/konveyor/tackle2-addon-platform"
+        "quay.io/konveyor/c-sharp-provider"
+        "quay.io/konveyor/java-external-provider"
+        "quay.io/konveyor/go-external-provider"
+        "quay.io/konveyor/python-external-provider"
+        "quay.io/konveyor/nodejs-external-provider"
+    )
+fi
+
 hub_regex=".*tackle2-hub.*"
 addon_regex=".*tackle2-addon-analyzer.*"
 addon_discovery=".*tackle2-addon-discovery.*"
@@ -20,6 +38,7 @@ addon_platform=".*tackle2-addon-platform.*"
 kantra_image_regex=".*kantra.*"
 java_provider_image_regex=".*java(-external)?-provider.*"
 c_sharp_provider_image_regex=".*c-sharp-provider.*"
+generic_provider_image_regex=".*generic(-external)?-provider.*"
 go_provider_image_regex=".*go(-external)?-provider.*"
 python_provider_image_regex=".*python(-external)?-provider.*"
 nodejs_provider_image_regex=".*nodejs(-external)?-provider.*"
@@ -218,6 +237,9 @@ if [ ${#MISSING[@]} -gt 0 ]; then
                 if [[ "$img" =~ $c_sharp_provider_image_regex ]]; then
                     echo "CSHARP_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
                 fi
+                if [[ "$img" =~ $generic_provider_image_regex ]]; then
+                    echo "GENERIC_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+                fi
                 if [[ "$img" =~ $go_provider_image_regex ]]; then
                     echo "GO_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
                 fi
@@ -295,6 +317,10 @@ if [ ${#MISSING[@]} -gt 0 ]; then
             echo "C Sharp Provider Found Set Env Var: CSHARP_PROVIDER_IMG=$NEW_TAG"
             echo "CSHARP_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
         fi
+        if [[ "$image" =~ $generic_provider_image_regex ]]; then
+            echo "Generic Provider Image Found Set Env Var: GENERIC_PROVIDER_IMG=$NEW_TAG"
+            echo "GENERIC_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
         if [[ "$image" =~ $go_provider_image_regex ]]; then
             echo "Go Provider Image Found Set Env Var: GO_PROVIDER_IMG=$NEW_TAG"
             echo "GO_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
@@ -334,5 +360,51 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 else
     echo "------------------------------------------------------------"
     echo "Status: All required images are present"
+
+    for img_info in "${FOUND[@]}"; do
+        IMAGE=$(echo "$img_info" | awk '{print $NF}')
+
+        if [[ "$IMAGE" =~ $hub_regex ]]; then
+            echo "Setting HUB=$IMAGE"
+            echo "HUB=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $addon_regex ]]; then
+            echo "Setting ANALYZER_ADDON=$IMAGE"
+            echo "ANALYZER_ADDON=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $addon_discovery ]]; then
+            echo "Setting DISCOVERY_ADDON=$IMAGE"
+            echo "DISCOVERY_ADDON=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $addon_platform ]]; then
+            echo "Setting PLATFORM_ADDON=$IMAGE"
+            echo "PLATFORM_ADDON=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $java_provider_image_regex ]]; then
+            echo "Setting JAVA_PROVIDER_IMG=$IMAGE"
+            echo "JAVA_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $c_sharp_provider_image_regex ]]; then
+            echo "Setting CSHARP_PROVIDER_IMG=$IMAGE"
+            echo "CSHARP_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $generic_provider_image_regex ]]; then
+            echo "Setting GENERIC_PROVIDER_IMG=$IMAGE"
+            echo "GENERIC_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $go_provider_image_regex ]]; then
+            echo "Setting GO_PROVIDER_IMG=$IMAGE"
+            echo "GO_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $python_provider_image_regex ]]; then
+            echo "Setting PYTHON_PROVIDER_IMG=$IMAGE"
+            echo "PYTHON_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $nodejs_provider_image_regex ]]; then
+            echo "Setting NODEJS_PROVIDER_IMG=$IMAGE"
+            echo "NODEJS_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+    done
+
     exit 0
 fi
