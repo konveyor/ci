@@ -360,5 +360,51 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 else
     echo "------------------------------------------------------------"
     echo "Status: All required images are present"
+
+    for img_info in "${FOUND[@]}"; do
+        IMAGE=$(echo "$img_info" | awk '{print $NF}')
+
+        if [[ "$IMAGE" =~ $hub_regex ]]; then
+            echo "Setting HUB=$IMAGE"
+            echo "HUB=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $addon_regex ]]; then
+            echo "Setting ANALYZER_ADDON=$IMAGE"
+            echo "ANALYZER_ADDON=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $addon_discovery ]]; then
+            echo "Setting DISCOVERY_ADDON=$IMAGE"
+            echo "DISCOVERY_ADDON=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $addon_platform ]]; then
+            echo "Setting PLATFORM_ADDON=$IMAGE"
+            echo "PLATFORM_ADDON=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $java_provider_image_regex ]]; then
+            echo "Setting JAVA_PROVIDER_IMG=$IMAGE"
+            echo "JAVA_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $c_sharp_provider_image_regex ]]; then
+            echo "Setting CSHARP_PROVIDER_IMG=$IMAGE"
+            echo "CSHARP_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $generic_provider_image_regex ]]; then
+            echo "Setting GENERIC_PROVIDER_IMG=$IMAGE"
+            echo "GENERIC_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $go_provider_image_regex ]]; then
+            echo "Setting GO_PROVIDER_IMG=$IMAGE"
+            echo "GO_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $python_provider_image_regex ]]; then
+            echo "Setting PYTHON_PROVIDER_IMG=$IMAGE"
+            echo "PYTHON_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+        if [[ "$IMAGE" =~ $nodejs_provider_image_regex ]]; then
+            echo "Setting NODEJS_PROVIDER_IMG=$IMAGE"
+            echo "NODEJS_PROVIDER_IMG=$IMAGE" >> $GITHUB_ENV
+        fi
+    done
+
     exit 0
 fi
