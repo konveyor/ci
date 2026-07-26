@@ -244,8 +244,9 @@ runs:
         kubectl get deployments -n konveyor-tackle || true
         echo ""
         echo "=== Hub Env Vars ==="
-        kubectl get deployment tackle-hub -n konveyor-tackle -o jsonpath='{.spec.template.spec.containers[0].env[*]}' 2>/dev/null | python3 -m json.tool 2>/dev/null || \
-          kubectl get deployment tackle-hub -n konveyor-tackle -o yaml 2>/dev/null | grep -A1 'name: AUTH_REQUIRED\|name: KEYCLOAK_HOST\|name: KEYCLOAK_REALM' || true
+        kubectl get deployment tackle-hub -n konveyor-tackle \
+          -o 'jsonpath={.spec.template.spec.containers[0].env}' 2>/dev/null | \
+          jq '[.[] | select(.name == "AUTH_REQUIRED" or .name == "KEYCLOAK_HOST" or .name == "KEYCLOAK_REALM")]' 2>/dev/null || true
         echo ""
         echo "=== Tackle CR Status ==="
         kubectl get tackle -n konveyor-tackle -o yaml || true
