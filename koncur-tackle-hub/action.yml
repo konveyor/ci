@@ -237,6 +237,16 @@ runs:
         echo "=== Pod Logs (tackle-hub) ==="
         kubectl logs -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub --tail=100 || true
         echo ""
+        echo "=== Pod Logs (tackle-operator) ==="
+        kubectl logs -n konveyor-tackle -l name=tackle-operator --tail=200 || true
+        echo ""
+        echo "=== Deployments ==="
+        kubectl get deployments -n konveyor-tackle || true
+        echo ""
+        echo "=== Hub Env Vars ==="
+        kubectl get deployment tackle-hub -n konveyor-tackle -o jsonpath='{.spec.template.spec.containers[0].env[*]}' 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+          kubectl get deployment tackle-hub -n konveyor-tackle -o yaml 2>/dev/null | grep -A1 'name: AUTH_REQUIRED\|name: KEYCLOAK_HOST\|name: KEYCLOAK_REALM' || true
+        echo ""
         echo "=== Tackle CR Status ==="
         kubectl get tackle -n konveyor-tackle -o yaml || true
 
