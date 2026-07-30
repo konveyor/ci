@@ -192,8 +192,9 @@ runs:
           aarch64) ARCH="arm64" ;;
         esac
         echo "Upgrading crun to ${CRUN_VERSION} for OCI runtime spec v1.2.1 compatibility"
-        curl -sLo /tmp/crun "https://github.com/containers/crun/releases/download/${CRUN_VERSION}/crun-${CRUN_VERSION}-linux-${ARCH}"
+        curl -sfLo /tmp/crun "https://github.com/containers/crun/releases/download/${CRUN_VERSION}/crun-${CRUN_VERSION}-linux-${ARCH}"
         chmod +x /tmp/crun
+        /tmp/crun --version | head -1 | grep -q "crun version ${CRUN_VERSION}" || { echo "Downloaded crun reports unexpected version"; /tmp/crun --version; exit 1; }
         sudo mv /tmp/crun /usr/bin/crun
         echo "crun version: $(crun --version | head -1)"
 
