@@ -28,6 +28,7 @@ config:
         image: "quay.io/konveyor/tackle2-addon-analyzer"
         dockerfile_path: "Dockerfile"
         context_path: "."
+        base_image_arg: ANALYZER_LSP_IMAGE
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
 
