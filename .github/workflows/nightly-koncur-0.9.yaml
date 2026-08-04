@@ -172,6 +172,8 @@ jobs:
 
   run-koncur-tackle-hub-action:
     if: ${{ !cancelled() && !failure() }}
+    permissions:
+      contents: read
     needs:
     - build-images
     - build-level1-images
