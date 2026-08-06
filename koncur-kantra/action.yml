@@ -3,7 +3,7 @@ name: Koncur Kantra
 inputs:
   skip_maven:
     description: "Whether to setup access to the testing maven packages"
-    default: false
+    default: true
     type: boolean
   os:
     description: OS that the action is running on, one of macos, windows, linux

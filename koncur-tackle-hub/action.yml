@@ -3,7 +3,7 @@ name: Koncur Tackle Hub
 inputs:
   skip_maven:
     description: "Whether to setup access to the testing maven packages"
-    default: false
+    default: true
     type: boolean
   image_pattern:
     description: The pattern used to download the image's that have been built to test

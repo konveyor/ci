@@ -175,6 +175,7 @@ jobs:
           image_pattern: |
             *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
           ref: ${{ inputs.branch || 'main' }}
+          skip_maven: false
   
   run-koncur-tackle-hub-action:
     if: ${{ !cancelled() && !failure() }}
@@ -193,6 +194,7 @@ jobs:
           image_pattern: |
             *{tackle2-*,provider}--${{ needs.nightly-tag.outputs.tag }}
           ref: ${{ inputs.branch || 'main' }}
+          skip_maven: false
 
   report_failure:
     needs:

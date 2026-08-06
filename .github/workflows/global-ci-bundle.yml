@@ -181,7 +181,7 @@ on:
         description: Whether to skip setting up maven for koncur tests
         type: boolean
         required: false
-        default: true
+        default: false
 
   workflow_dispatch:
     inputs:
@@ -607,3 +607,4 @@ jobs:
         with:
           os: ${{ matrix.os }}
           ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
+          skip_maven: ${{ inputs.koncur_skip_maven }}
