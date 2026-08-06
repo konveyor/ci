@@ -3,7 +3,7 @@ name: Koncur Tackle Hub
 inputs:
   skip_maven:
     description: "Whether to setup access to the testing maven packages"
-    default: true
+    default: false
     type: boolean
   image_pattern:
     description: The pattern used to download the image's that have been built to test
@@ -182,14 +182,14 @@ runs:
         echo $HOME/.local/bin >> $GITHUB_PATH
     # Maven setup - mirrors kantra.yaml approach using local HTTP server
     - name: Run server for maven-local-resources
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ inputs.skip_maven == 'false' }}
       uses: Eun/http-server-action@v1
       with:
         directory: local-maven-resources
         port: 8085
 
     - name: Get Kind network gateway
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ inputs.skip_maven == 'false' }}
       shell: bash
       run: |
         # Get the gateway IP from inside the Kind container's routing table
@@ -199,7 +199,7 @@ runs:
         echo "Kind gateway: $GATEWAY"
 
     - name: Create maven settings file
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ inputs.skip_maven == 'false' }}
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false

@@ -3,7 +3,7 @@ name: Koncur Kantra
 inputs:
   skip_maven:
     description: "Whether to setup access to the testing maven packages"
-    default: true
+    default: false
     type: boolean
   os:
     description: OS that the action is running on, one of macos, windows, linux
@@ -149,7 +149,7 @@ runs:
         go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
 
     - name: Allow firewall rule
-      if: ${{ !inputs.skip_maven && inputs.os == 'windows-latest' }}
+      if: ${{ inputs.skip_maven == 'false' && inputs.os == 'windows-latest' }}
       shell: powershell
       run: |
         $wslAdapter = Get-NetAdapter | Where-Object {$_.Name -like "*WSL*"}
@@ -163,14 +163,14 @@ runs:
         }
 
     - name: Run server for maven-local-resources
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ inputs.skip_maven == 'false' }}
       uses: Eun/http-server-action@v1
       with:
         directory: local-maven-resources
         port: 8085
 
     - name: Set maven settings path (Windows)
-      if: ${{ !inputs.skip_maven && inputs.os == 'windows' }}
+      if: ${{ inputs.skip_maven == 'false' && inputs.os == 'windows' }}
       shell: bash
       run: |
         # Create directory using bash
@@ -180,14 +180,14 @@ runs:
         echo "MAVEN_SETTINGS_PATH=$WINDOWS_PATH" >> $GITHUB_ENV
 
     - name: Set maven settings path (*nix)
-      if: ${{ !inputs.skip_maven && inputs.os != 'windows-latest' }}
+      if: ${{ inputs.skip_maven == 'false' && inputs.os != 'windows-latest' }}
       shell: bash
       run: |
         mkdir -p "$HOME/.koncur/temp"
         echo "MAVEN_SETTINGS_PATH=$HOME/.koncur/temp/settings.xml" >> $GITHUB_ENV
 
     - name: Create maven settings file
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ inputs.skip_maven == 'false' }}
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false
@@ -196,7 +196,7 @@ runs:
         path: "${{ env.MAVEN_SETTINGS_PATH }}"
 
     - name: Create kantra config
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ inputs.skip_maven == 'false' }}
       shell: bash
       run: |
         mkdir -p .koncur/config
