@@ -137,6 +137,7 @@ runs:
       with:
         repository: konveyor/koncur
         ref: ${{ inputs.ref }}
+        path: koncur
 
     - name: Setup go
       uses: actions/setup-go@v6
@@ -145,6 +146,7 @@ runs:
 
     - name: Build Koncur
       shell: bash
+      working-directory: koncur
       run: |
         go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
 
@@ -166,7 +168,7 @@ runs:
       if: ${{ inputs.skip_maven == 'false' }}
       uses: Eun/http-server-action@v1
       with:
-        directory: local-maven-resources
+        directory: koncur/local-maven-resources
         port: 8085
 
     - name: Set maven settings path (Windows)
@@ -198,6 +200,7 @@ runs:
     - name: Create kantra config
       if: ${{ inputs.skip_maven == 'false' }}
       shell: bash
+      working-directory: koncur
       run: |
         mkdir -p .koncur/config
         cat << 'EOF' > .koncur/config/target-kantra.yaml
@@ -208,6 +211,7 @@ runs:
 
     - name: Run test
       shell: bash
+      working-directory: koncur
       env:
         SKIP_MAVEN: ${{ fromJSON(inputs.skip_maven) }}
       run: |
@@ -219,7 +223,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: koncur-kantra-${{ inputs.os }}-failures
-        path: .koncur/output 
+        path: koncur/.koncur/output
         retention-days: 5
         include-hidden-files: true
 
@@ -228,5 +232,5 @@ runs:
       if: always()
       with:
         name: koncur-kantra-${{ inputs.os }}-summary
-        path: test.yaml
+        path: koncur/test.yaml
         retention-days: 3
