@@ -521,74 +521,19 @@ jobs:
           fi
 
   koncur-hub-tests:
-    needs: [check-images, extract-koncur-ref]
+    needs: [extract-koncur-ref]
     runs-on: ubuntu-latest
     if: ${{ inputs.run_koncur_hub_tests }}
     steps:
-      - name: Setup Konveyor
-        uses: konveyor/ci/setup-konveyor-minikube@main
-        with:
-          artifact: ${{ inputs.artifact }}
-          operator_bundle: ${{ inputs.operator_bundle }}
-          operator_bundle_fallback: ${{ env.operator_bundle }}
-          base_tag: ${{ inputs.base_tag }}
-          oauth_proxy: ${{ inputs.oauth_proxy }}
-          tackle_hub: ${{ inputs.tackle_hub }}
-          tackle_postgres: ${{ inputs.tackle_postgres }}
-          # BACKCOMPAT: only used when a pre-hub-IdP operator (e.g. release-0.9) is targeted
-          keycloak_sso: ${{ inputs.keycloak_sso }}
-          keycloak_init: ${{ inputs.keycloak_init }}
-          tackle_ui: ${{ inputs.tackle_ui }}
-          addon_analyzer: ${{ inputs.addon_analyzer }}
-          addon_discovery: ${{ inputs.addon_discovery }}
-          namespace: ${{ inputs.namespace }}
-          tackle_cr: ${{ inputs.tackle_cr }}
-
-      - name: Checkout koncur
+      - name: Checkout CI repo
         uses: actions/checkout@v4
-        with:
-          repository: konveyor/koncur
-          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
-          path: koncur
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Build Koncur
-        run: |
-          cd koncur
-          go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Start port-forward
-        run: |
-          kubectl port-forward -n konveyor-tackle svc/tackle-hub 8081:8080 &
-          sleep 5
-
-      - name: Create Hub target config
-        run: |
-          mkdir -p .koncur/config
-          cat > .koncur/config/target-tackle-hub.yaml << 'EOF'
-          type: tackle-hub
-          tackleHub:
-            url: http://localhost:8081
-          EOF
 
       - name: Run Koncur Hub tests
-        working-directory: koncur
-        env:
-          SKIP_MAVEN: ${{ inputs.koncur_skip_maven }}
-        run: koncur run tests -t tackle-hub --target-config ../.koncur/config/target-tackle-hub.yaml -o yaml --output-file test-hub.yaml
-
-      - name: Upload result yaml
-        uses: actions/upload-artifact@v4
-        if: always()
+        uses: ./koncur-tackle-hub
         with:
-          name: koncur-hub-summary
-          path: koncur/test-hub.yaml
-          retention-days: 3
+          ref: ${{ inputs.base_tag }}
+          koncur_ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
+          skip_maven: ${{ inputs.koncur_skip_maven }}
 
   koncur-kantra-tests:
     needs: [check-images, extract-koncur-ref, setup-kantra-matrix]

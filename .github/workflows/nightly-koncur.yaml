@@ -194,6 +194,7 @@ jobs:
           image_pattern: |
             *{tackle2-*,provider}--${{ needs.nightly-tag.outputs.tag }}
           ref: ${{ inputs.branch || 'main' }}
+          koncur_ref: ${{ inputs.branch || 'main' }}
           skip_maven: false
 
   report_failure:
