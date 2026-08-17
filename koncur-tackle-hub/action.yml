@@ -192,14 +192,14 @@ runs:
         echo $HOME/.local/bin >> $GITHUB_PATH
 
     - name: Run server for maven-local-resources
-      if: ${{ inputs.skip_maven == 'false' }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: Eun/http-server-action@v1
       with:
         directory: koncur/local-maven-resources
         port: 8085
 
     - name: Get Kind network gateway
-      if: ${{ inputs.skip_maven == 'false' }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       shell: bash
       run: |
         # Get the gateway IP from inside the Kind container's routing table
@@ -209,7 +209,7 @@ runs:
         echo "Kind gateway: $GATEWAY"
 
     - name: Create maven settings file
-      if: ${{ inputs.skip_maven == 'false' }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false

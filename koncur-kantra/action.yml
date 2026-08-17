@@ -151,7 +151,7 @@ runs:
         go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
 
     - name: Allow firewall rule
-      if: ${{ inputs.skip_maven == 'false' && inputs.os == 'windows' }}
+      if: ${{ !fromJSON(inputs.skip_maven) && inputs.os == 'windows' }}
       shell: powershell
       run: |
         $wslAdapter = Get-NetAdapter | Where-Object {$_.Name -like "*WSL*"}
@@ -165,14 +165,14 @@ runs:
         }
 
     - name: Run server for maven-local-resources
-      if: ${{ inputs.skip_maven == 'false' }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: Eun/http-server-action@v1
       with:
         directory: koncur/local-maven-resources
         port: 8085
 
     - name: Set maven settings path (Windows)
-      if: ${{ inputs.skip_maven == 'false' && inputs.os == 'windows' }}
+      if: ${{ !fromJSON(inputs.skip_maven) && inputs.os == 'windows' }}
       shell: bash
       run: |
         # Create directory using bash
@@ -182,14 +182,14 @@ runs:
         echo "MAVEN_SETTINGS_PATH=$WINDOWS_PATH" >> $GITHUB_ENV
 
     - name: Set maven settings path (*nix)
-      if: ${{ inputs.skip_maven == 'false' && inputs.os != 'windows' }}
+      if: ${{ !fromJSON(inputs.skip_maven) && inputs.os != 'windows' }}
       shell: bash
       run: |
         mkdir -p "$HOME/.koncur/temp"
         echo "MAVEN_SETTINGS_PATH=$HOME/.koncur/temp/settings.xml" >> $GITHUB_ENV
 
     - name: Create maven settings file
-      if: ${{ inputs.skip_maven == 'false' }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false
@@ -198,7 +198,7 @@ runs:
         path: "${{ env.MAVEN_SETTINGS_PATH }}"
 
     - name: Create kantra config
-      if: ${{ inputs.skip_maven == 'false' }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       shell: bash
       working-directory: koncur
       run: |
