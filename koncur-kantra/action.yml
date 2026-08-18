@@ -137,6 +137,7 @@ runs:
       with:
         repository: konveyor/koncur
         ref: ${{ inputs.ref }}
+        path: koncur
 
     - name: Setup go
       uses: actions/setup-go@v6
@@ -145,11 +146,12 @@ runs:
 
     - name: Build Koncur
       shell: bash
+      working-directory: koncur
       run: |
         go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
 
     - name: Allow firewall rule
-      if: ${{ !inputs.skip_maven && inputs.os == 'windows-latest' }}
+      if: ${{ !fromJSON(inputs.skip_maven) && inputs.os == 'windows' }}
       shell: powershell
       run: |
         $wslAdapter = Get-NetAdapter | Where-Object {$_.Name -like "*WSL*"}
@@ -163,14 +165,14 @@ runs:
         }
 
     - name: Run server for maven-local-resources
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: Eun/http-server-action@v1
       with:
-        directory: local-maven-resources
+        directory: koncur/local-maven-resources
         port: 8085
 
     - name: Set maven settings path (Windows)
-      if: ${{ !inputs.skip_maven && inputs.os == 'windows' }}
+      if: ${{ !fromJSON(inputs.skip_maven) && inputs.os == 'windows' }}
       shell: bash
       run: |
         # Create directory using bash
@@ -180,14 +182,14 @@ runs:
         echo "MAVEN_SETTINGS_PATH=$WINDOWS_PATH" >> $GITHUB_ENV
 
     - name: Set maven settings path (*nix)
-      if: ${{ !inputs.skip_maven && inputs.os != 'windows-latest' }}
+      if: ${{ !fromJSON(inputs.skip_maven) && inputs.os != 'windows' }}
       shell: bash
       run: |
         mkdir -p "$HOME/.koncur/temp"
         echo "MAVEN_SETTINGS_PATH=$HOME/.koncur/temp/settings.xml" >> $GITHUB_ENV
 
     - name: Create maven settings file
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false
@@ -196,8 +198,9 @@ runs:
         path: "${{ env.MAVEN_SETTINGS_PATH }}"
 
     - name: Create kantra config
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       shell: bash
+      working-directory: koncur
       run: |
         mkdir -p .koncur/config
         cat << 'EOF' > .koncur/config/target-kantra.yaml
@@ -208,6 +211,7 @@ runs:
 
     - name: Run test
       shell: bash
+      working-directory: koncur
       env:
         SKIP_MAVEN: ${{ fromJSON(inputs.skip_maven) }}
       run: |
@@ -219,7 +223,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: koncur-kantra-${{ inputs.os }}-failures
-        path: .koncur/output 
+        path: koncur/.koncur/output
         retention-days: 5
         include-hidden-files: true
 
@@ -228,5 +232,5 @@ runs:
       if: always()
       with:
         name: koncur-kantra-${{ inputs.os }}-summary
-        path: test.yaml
+        path: koncur/test.yaml
         retention-days: 3

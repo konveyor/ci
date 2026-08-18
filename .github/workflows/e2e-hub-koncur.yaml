@@ -59,4 +59,5 @@ jobs:
         with:
           image_pattern: |
             *{tackle2-*,provider}--${{ github.run_id }}
-          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name }}
+          koncur_ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}

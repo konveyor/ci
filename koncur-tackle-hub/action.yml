@@ -10,6 +10,11 @@ inputs:
     required: false
     type: string
   ref:
+    description: The ref used for pulling images (fallback tag)
+    required: false
+    type: string
+    default: main
+  koncur_ref:
     description: The ref of koncur to use for testing
     required: false
     type: string
@@ -21,8 +26,9 @@ runs:
     - name: Checkout repo
       uses: actions/checkout@v6
       with:
-        ref: ${{ inputs.ref }}
+        ref: ${{ inputs.koncur_ref }}
         repository: konveyor/koncur
+        path: koncur
 
     - name: Setup Go
       uses: actions/setup-go@v6
@@ -47,6 +53,7 @@ runs:
 
     - name: Create Kind cluster
       shell: bash
+      working-directory: koncur
       run: make kind-create
 
 
@@ -80,6 +87,7 @@ runs:
 
     - name: Install Tackle Hub with auth
       shell: bash
+      working-directory: koncur
       env:
         RUNNER_IMG: ${{ env.RUNNER_IMG }}
         JAVA_PROVIDER_IMG: ${{ env.JAVA_PROVIDER_IMG }}
@@ -103,6 +111,7 @@ runs:
 
     - name: Start port-forward
       shell: bash
+      working-directory: koncur
       run: make hub-forward &
 
     - name: Wait for Hub API (auth)
@@ -177,19 +186,20 @@ runs:
 
     - name: Build Koncur
       shell: bash
+      working-directory: koncur
       run: |
         go build -o $HOME/.local/bin/koncur ./cmd/koncur/main.go
         echo $HOME/.local/bin >> $GITHUB_PATH
-    # Maven setup - mirrors kantra.yaml approach using local HTTP server
+
     - name: Run server for maven-local-resources
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: Eun/http-server-action@v1
       with:
-        directory: local-maven-resources
+        directory: koncur/local-maven-resources
         port: 8085
 
     - name: Get Kind network gateway
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       shell: bash
       run: |
         # Get the gateway IP from inside the Kind container's routing table
@@ -199,7 +209,7 @@ runs:
         echo "Kind gateway: $GATEWAY"
 
     - name: Create maven settings file
-      if: ${{ !inputs.skip_maven }}
+      if: ${{ !fromJSON(inputs.skip_maven) }}
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false
@@ -209,6 +219,7 @@ runs:
 
     - name: Create Hub target config
       shell: bash
+      working-directory: koncur
       run: |
         mkdir -p .koncur/config
         printf 'type: tackle-hub\n' > .koncur/config/target-tackle-hub.yaml
@@ -222,6 +233,7 @@ runs:
 
     - name: Run test
       shell: bash
+      working-directory: koncur
       env:
         SKIP_MAVEN: ${{ inputs.skip_maven }}
       run: |
@@ -256,7 +268,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: koncur-hub-failures
-        path: .koncur
+        path: koncur/.koncur
         retention-days: 5
 
     - name: Upload result yaml
@@ -264,7 +276,7 @@ runs:
       if: always()
       with:
         name: koncur-hub-summary
-        path: test-hub.yaml
+        path: koncur/test-hub.yaml
         retention-days: 3
 
     - name: Cleanup Kind cluster
