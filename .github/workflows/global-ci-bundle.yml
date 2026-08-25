@@ -359,7 +359,7 @@ jobs:
           echo "Using GOLANG_TESTS_REF \`${GOLANG_TESTS_REF}\`" >>"$GITHUB_STEP_SUMMARY"
 
       - name: Checkout golang api tests repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: konveyor/go-konveyor-tests
           path: go-konveyor-tests
@@ -412,7 +412,7 @@ jobs:
           fi || true
       - name: Upload analysis tests output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: analysis-tests-output
           include-hidden-files: true
@@ -526,7 +526,9 @@ jobs:
     if: ${{ inputs.run_koncur_hub_tests }}
     steps:
       - name: Checkout CI repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          repository: konveyor/ci
 
       - name: Run Koncur Hub tests
         uses: ./koncur-tackle-hub
@@ -543,7 +545,9 @@ jobs:
       matrix: ${{ fromJSON(needs.setup-kantra-matrix.outputs.matrix) }}
     steps:
       - name: Checkout CI repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          repository: konveyor/ci
 
       - name: Run Koncur Kantra tests
         uses: ./koncur-kantra
