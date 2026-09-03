@@ -1,0 +1,228 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: mta-fbc-koncur-e2e-pipeline
+spec:
+  description: |
+    Deploy MTA operator from FBC catalog to ephemeral OCPCTL cluster and run koncur hub E2E tests.
+    Uses modular reusable tasks from migtools/mta-tackle2-ui .tekton/tasks/ for cluster lifecycle and operator deployment.
+
+  params:
+    - name: SNAPSHOT
+      description: Application Snapshot JSON
+      type: string
+
+  results:
+    - name: IMAGE_VERIFICATION
+      description: Pre-flight image pullability check status
+      value: $(tasks.verify-image-pullable.results.verificationStatus)
+    - name: PROVISION_STATUS
+      description: Cluster provisioning status (READY, TIMEOUT, or FAILED)
+      value: $(tasks.provision-cluster.results.provisionStatus)
+    - name: CLUSTER_NAME
+      description: Name of the provisioned cluster
+      value: $(tasks.provision-cluster.results.clusterName)
+    - name: DEPLOYMENT_STATUS
+      description: Operator deployment status
+      value: $(tasks.deploy-operator.results.deploymentStatus)
+    - name: TEST_OUTPUT
+      description: Test execution result
+      value: $(tasks.run-e2e-tests.results.testStatus)
+
+  tasks:
+    - name: parse-metadata
+      params:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/konflux-ci/integration-examples
+          - name: revision
+            value: a1a70b0a1cfc96f5216d472fbd60f6b42780b3e5
+          - name: pathInRepo
+            value: tasks/test_metadata.yaml
+
+    - name: verify-image-pullable
+      runAfter:
+        - parse-metadata
+      params:
+        - name: fbcImage
+          value: $(tasks.parse-metadata.results.component-container-image)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/migtools/mta-tackle2-ui
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: .tekton/tasks/verify-image-pullable.yaml
+
+    - name: provision-cluster
+      runAfter:
+        - verify-image-pullable
+      params:
+        - name: clusterName
+          value: "$(context.pipelineRun.uid)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/migtools/mta-tackle2-ui
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: .tekton/tasks/ocpctl-provision.yaml
+
+    - name: verify-provision
+      runAfter:
+        - provision-cluster
+      params:
+        - name: provisionStatus
+          value: $(tasks.provision-cluster.results.provisionStatus)
+      taskSpec:
+        params:
+          - name: provisionStatus
+        steps:
+          - name: check-status
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            script: |
+              #!/bin/bash
+              STATUS="$(params.provisionStatus)"
+              echo "Cluster provision status: $STATUS"
+
+              if [ "$STATUS" != "READY" ]; then
+                echo "❌ Cluster provisioning failed or timed out"
+                echo "Cluster ID was saved and will be cleaned up in finally step"
+                exit 1
+              fi
+
+              echo "✅ Cluster is ready, proceeding with deployment"
+
+    - name: deploy-operator
+      runAfter:
+        - verify-provision
+      params:
+        - name: clusterId
+          value: $(tasks.provision-cluster.results.clusterId)
+        - name: fbcImage
+          value: $(tasks.parse-metadata.results.component-container-image)
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/migtools/mta-tackle2-ui
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: .tekton/tasks/deploy-mta-operator.yaml
+
+    - name: run-e2e-tests
+      runAfter:
+        - deploy-operator
+      params:
+        - name: uiRoute
+          value: $(tasks.deploy-operator.results.uiRoute)
+      taskSpec:
+        params:
+          - name: uiRoute
+        results:
+          - name: testStatus
+            description: Test execution status (PASSED or FAILED)
+        stepTemplate:
+          computeResources:
+            requests:
+              memory: 4Gi
+              cpu: "2"
+            limits:
+              memory: 8Gi
+              cpu: "4"
+        steps:
+          - name: run-tests
+            image: golang:1.25
+            env:
+              - name: SKIP_MAVEN
+                value: "false"
+            script: |
+              #!/bin/bash
+              set -euo pipefail
+              trap 'echo "FAILED" > $(results.testStatus.path)' ERR
+
+              UI_ROUTE="$(params.uiRoute)"
+              HUB_URL="https://${UI_ROUTE}/hub"
+
+              echo "Tackle Hub URL: $HUB_URL"
+
+              echo "Cloning koncur repository..."
+              cd /tmp
+              git clone --depth 1 --branch main https://github.com/konveyor/koncur.git
+              cd koncur
+
+              echo "Building koncur..."
+              go build -o /usr/local/bin/koncur ./cmd/koncur/main.go
+
+              echo "Writing maven settings (test artifacts served from koncur repo)..."
+              mkdir -p .koncur/config
+              cat > .koncur/config/settings.xml <<'EOF'
+              <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+                <profiles>
+                  <profile>
+                    <id>konveyor-demo</id>
+                    <repositories>
+                      <repository>
+                        <id>konveyor-demo</id>
+                        <name>Konveyor demo test artifacts</name>
+                        <url>https://raw.githubusercontent.com/konveyor/koncur/main/local-maven-resources</url>
+                        <releases><enabled>true</enabled></releases>
+                        <snapshots><enabled>true</enabled></snapshots>
+                      </repository>
+                    </repositories>
+                  </profile>
+                </profiles>
+                <activeProfiles>
+                  <activeProfile>konveyor-demo</activeProfile>
+                </activeProfiles>
+              </settings>
+              EOF
+
+              echo "Writing tackle-hub target config..."
+              cat > .koncur/config/target-tackle-hub.yaml <<EOF
+              type: tackle-hub
+              tackleHub:
+                url: ${HUB_URL}
+                username: admin
+                password: admin
+                insecure: true
+                mavenSettings: ${PWD}/.koncur/config/settings.xml
+              EOF
+
+              echo "Running koncur hub tests..."
+              if koncur run tests -t tackle-hub \
+                --target-config .koncur/config/target-tackle-hub.yaml \
+                -o yaml --output-file test-hub.yaml; then
+                echo "PASSED" > $(results.testStatus.path)
+              else
+                echo "FAILED" > $(results.testStatus.path)
+                exit 1
+              fi
+
+  finally:
+    - name: cleanup-cluster
+      params:
+        - name: clusterId
+          value: $(tasks.provision-cluster.results.clusterId)
+        - name: clusterName
+          value: "$(context.pipelineRun.uid)"
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/migtools/mta-tackle2-ui
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: .tekton/tasks/ocpctl-cleanup.yaml
