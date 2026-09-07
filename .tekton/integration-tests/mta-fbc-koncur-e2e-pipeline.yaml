@@ -4,24 +4,28 @@ metadata:
   name: mta-fbc-koncur-e2e-pipeline
 spec:
   description: |
-    Deploy MTA operator from FBC catalog to ephemeral OCPCTL cluster and run koncur hub E2E tests.
+    Deploy MTA operator from FBC catalog to a leased OCPCTL pool cluster and run koncur hub E2E tests.
     Uses modular reusable tasks from migtools/mta-tackle2-ui .tekton/tasks/ for cluster lifecycle and operator deployment.
 
   params:
     - name: SNAPSHOT
       description: Application Snapshot JSON
       type: string
+    - name: poolName
+      description: Name of the cluster pool to lease from
+      type: string
+      default: "ci-sno-pool-1"
 
   results:
     - name: IMAGE_VERIFICATION
       description: Pre-flight image pullability check status
       value: $(tasks.verify-image-pullable.results.verificationStatus)
-    - name: PROVISION_STATUS
-      description: Cluster provisioning status (READY, TIMEOUT, or FAILED)
-      value: $(tasks.provision-cluster.results.provisionStatus)
+    - name: LEASE_STATUS
+      description: Pool cluster lease status
+      value: $(tasks.lease-cluster.results.leaseStatus)
     - name: CLUSTER_NAME
-      description: Name of the provisioned cluster
-      value: $(tasks.provision-cluster.results.clusterName)
+      description: Name of the leased cluster
+      value: $(tasks.lease-cluster.results.clusterName)
     - name: DEPLOYMENT_STATUS
       description: Operator deployment status
       value: $(tasks.deploy-operator.results.deploymentStatus)
@@ -60,12 +64,16 @@ spec:
           - name: pathInRepo
             value: .tekton/tasks/verify-image-pullable.yaml
 
-    - name: provision-cluster
+    - name: lease-cluster
       runAfter:
         - verify-image-pullable
       params:
-        - name: clusterName
-          value: "$(context.pipelineRun.uid)"
+        - name: poolName
+          value: $(params.poolName)
+        - name: leaseDuration
+          value: "4"
+        - name: purpose
+          value: "MTA FBC E2E Testing"
       taskRef:
         resolver: git
         params:
@@ -74,39 +82,30 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: .tekton/tasks/ocpctl-provision.yaml
+            value: .tekton/tasks/ocpctl-pool-lease.yaml
 
-    - name: verify-provision
+    - name: cleanup-existing-mta
       runAfter:
-        - provision-cluster
+        - lease-cluster
       params:
-        - name: provisionStatus
-          value: $(tasks.provision-cluster.results.provisionStatus)
-      taskSpec:
+        - name: clusterId
+          value: $(tasks.lease-cluster.results.clusterId)
+      taskRef:
+        resolver: git
         params:
-          - name: provisionStatus
-        steps:
-          - name: check-status
-            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
-            script: |
-              #!/bin/bash
-              STATUS="$(params.provisionStatus)"
-              echo "Cluster provision status: $STATUS"
-
-              if [ "$STATUS" != "READY" ]; then
-                echo "❌ Cluster provisioning failed or timed out"
-                echo "Cluster ID was saved and will be cleaned up in finally step"
-                exit 1
-              fi
-
-              echo "✅ Cluster is ready, proceeding with deployment"
+          - name: url
+            value: https://github.com/migtools/mta-tackle2-ui
+          - name: revision
+            value: main
+          - name: pathInRepo
+            value: .tekton/tasks/cleanup-mta.yaml
 
     - name: deploy-operator
       runAfter:
-        - verify-provision
+        - cleanup-existing-mta
       params:
         - name: clusterId
-          value: $(tasks.provision-cluster.results.clusterId)
+          value: $(tasks.lease-cluster.results.clusterId)
         - name: fbcImage
           value: $(tasks.parse-metadata.results.component-container-image)
       taskRef:
@@ -211,12 +210,14 @@ spec:
               fi
 
   finally:
-    - name: cleanup-cluster
+    - name: release-cluster
+      when:
+        - input: "$(tasks.lease-cluster.status)"
+          operator: in
+          values: ["Succeeded"]
       params:
         - name: clusterId
-          value: $(tasks.provision-cluster.results.clusterId)
-        - name: clusterName
-          value: "$(context.pipelineRun.uid)"
+          value: $(tasks.lease-cluster.results.clusterId)
       taskRef:
         resolver: git
         params:
@@ -225,4 +226,4 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: .tekton/tasks/ocpctl-cleanup.yaml
+            value: .tekton/tasks/ocpctl-pool-release.yaml
