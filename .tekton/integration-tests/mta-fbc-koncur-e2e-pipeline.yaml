@@ -31,7 +31,7 @@ spec:
       value: $(tasks.deploy-operator.results.deploymentStatus)
     - name: TEST_OUTPUT
       description: Test execution result
-      value: $(tasks.run-e2e-tests.results.testStatus)
+      value: $(tasks.run-koncur-hub-tests.results.testStatus)
 
   tasks:
     - name: parse-metadata
@@ -118,7 +118,7 @@ spec:
           - name: pathInRepo
             value: .tekton/tasks/deploy-mta-operator.yaml
 
-    - name: run-e2e-tests
+    - name: run-koncur-hub-tests
       runAfter:
         - deploy-operator
       params:
@@ -188,6 +188,15 @@ spec:
               </settings>
               EOF
 
+              echo "Importing hub CA chain into the trust store..."
+              # golang:1.25 is Debian-based, so use update-ca-certificates
+              # (/usr/local/share/ca-certificates) rather than the RHEL
+              # update-ca-trust path. Go's HTTP client reads the system store.
+              openssl s_client -showcerts -connect "${UI_ROUTE}:443" </dev/null 2>/dev/null \
+                | sed -n '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' \
+                > /usr/local/share/ca-certificates/hub-chain.crt
+              update-ca-certificates
+
               echo "Writing tackle-hub target config..."
               cat > .koncur/config/target-tackle-hub.yaml <<EOF
               type: tackle-hub
@@ -195,7 +204,6 @@ spec:
                 url: ${HUB_URL}
                 username: admin
                 password: admin
-                insecure: true
                 mavenSettings: ${PWD}/.koncur/config/settings.xml
               EOF
 
