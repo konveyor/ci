@@ -15,6 +15,10 @@ spec:
       description: Name of the cluster pool to lease from
       type: string
       default: "ci-sno-pool-1"
+    - name: koncurBranch
+      description: Branch of the konveyor/koncur repository to build and test from
+      type: string
+      default: "main"
 
   results:
     - name: IMAGE_VERIFICATION
@@ -124,9 +128,12 @@ spec:
       params:
         - name: uiRoute
           value: $(tasks.deploy-operator.results.uiRoute)
+        - name: koncurBranch
+          value: $(params.koncurBranch)
       taskSpec:
         params:
           - name: uiRoute
+          - name: koncurBranch
         results:
           - name: testStatus
             description: Test execution status (PASSED or FAILED)
@@ -156,7 +163,7 @@ spec:
 
               echo "Cloning koncur repository..."
               cd /tmp
-              git clone --depth 1 --branch main https://github.com/konveyor/koncur.git
+              git clone --depth 1 --branch "$(params.koncurBranch)" https://github.com/konveyor/koncur.git
               cd koncur
 
               echo "Building koncur..."
