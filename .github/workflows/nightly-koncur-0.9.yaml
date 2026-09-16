@@ -169,6 +169,7 @@ jobs:
           image_pattern: |
             *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
           ref: ${{ inputs.branch || 'release-0.9' }}
+          koncur_ref: ${{ inputs.branch || 'release-0.9' }}
 
   run-koncur-tackle-hub-action:
     if: ${{ !cancelled() && !failure() }}
