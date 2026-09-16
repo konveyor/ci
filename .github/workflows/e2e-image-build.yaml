@@ -29,6 +29,16 @@ on:
         required: false
         type: string
         default: 'main'
+      matrix_config:
+        description: |
+          Path (relative to the konveyor/ci repo root) of the matrix config
+          file to build images from. Leave empty to auto-detect from the
+          tested branch: a 'release-X.Y' branch uses
+          'matrix-config-X.Y.yaml' when it exists, otherwise the
+          default 'matrix-config.yaml'.
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       repo:
@@ -55,6 +65,14 @@ on:
         required: false
         type: string
         default: 'main'
+      matrix_config:
+        description: |
+          Path (relative to the konveyor/ci repo root) of the matrix config
+          file to build images from. Leave empty to auto-detect from the
+          tested branch.
+        required: false
+        type: string
+        default: ''
 
 jobs:
   prepare-matrix:
@@ -101,9 +119,26 @@ jobs:
 
           pip install -r scripts/requirements.txt
 
+          # Select the matrix config file. An explicit matrix_config input wins;
+          # otherwise auto-detect from the tested branch so a release-X.Y branch
+          # builds its own provider layout (falling back to the main config).
+          DEFAULT_CONFIG=".github/matrix-config.yaml"
+          MATRIX_CONFIG="${{ inputs.matrix_config }}"
+          BRANCH="${{ github.base_ref || github.ref_name }}"
+          if [ -z "$MATRIX_CONFIG" ]; then
+            MATRIX_CONFIG="$DEFAULT_CONFIG"
+            if [[ "$BRANCH" =~ ^release-([0-9]+\.[0-9]+)$ ]]; then
+              CANDIDATE=".github/matrix-config-${BASH_REMATCH[1]}.yaml"
+              if [ -f "$CANDIDATE" ]; then
+                MATRIX_CONFIG="$CANDIDATE"
+              fi
+            fi
+          fi
+          echo "Using matrix config: $MATRIX_CONFIG (branch: $BRANCH)"
+
           cmd=(
             python scripts/parse_matrix_config.py
-            .github/workflows/nightly-matrix-config.yaml
+            "$MATRIX_CONFIG"
             -t "${{ inputs.tag || github.run_id }}"
             -b "${{ github.base_ref || github.ref_name }}"
             -r "${{ inputs.repo || github.repository }}"
