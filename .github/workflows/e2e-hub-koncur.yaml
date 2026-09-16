@@ -16,7 +16,7 @@ on:
           "release-0.8".
         required: false
         type: string
-        default: main 
+        default: main
 
 jobs:
 

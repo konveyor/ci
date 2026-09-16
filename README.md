@@ -28,7 +28,7 @@ Today all of the workflows below are deprecated, and we will be moving away from
 
 These workflows are the new workflows and related files:
 
-* [nightly-matrix-config.yaml](.github/workflows/nightly-matrix-config.yaml)
+* [matrix-config.yaml](.github/matrix-config.yaml)
 > This is the source of truth for how repositories are tied together, what images need to be based on others.
 > Also contains the information for how to build the image for the given repository.
 
@@ -50,7 +50,7 @@ These are the new e2e workflows, to potentially be re-used by repos in the organ
 
 * [e2e-image-build.yaml](.github/workflows/e2e-image-build.yaml)
 > This is the core re-usable way to correctly build all the images in the system that need to be rebuilt based on a PR.
-> Uses the nightly-matrix-config and the build-nightly-images.yaml to build the correct subset of images.
+> Uses the matrix-config and the build-nightly-images.yaml to build the correct subset of images.
 
 * [e2e-hub-koncur](.github/workflows/e2e-hub-koncur.yaml)
 > Uses the e2e-image-build to build the correct images and then runs the hub koncur action.
