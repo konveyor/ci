@@ -75,4 +75,5 @@ jobs:
           os: ${{ matrix.os.os }}
           image_pattern: |
             *{kantra,provider}--${{ github.run_id }}
-          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name }}
+          koncur_ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}

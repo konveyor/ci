@@ -14,6 +14,11 @@ inputs:
     required: false
     type: string
   ref:
+    description: The ref used for pulling images (fallback tag)
+    required: false
+    type: string
+    default: main
+  koncur_ref:
     description: The ref of koncur to use for testing
     required: false
     type: string
@@ -136,7 +141,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: konveyor/koncur
-        ref: ${{ inputs.ref }}
+        ref: ${{ inputs.koncur_ref }}
         path: koncur
 
     - name: Setup go

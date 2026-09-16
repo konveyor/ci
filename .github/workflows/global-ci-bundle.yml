@@ -559,5 +559,6 @@ jobs:
           RUNNER_IMG: ${{ needs.check-images.outputs.kantra_image }}
         with:
           os: ${{ matrix.os }}
-          ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
+          ref: ${{ inputs.ref || 'main' }}
+          koncur_ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
           skip_maven: ${{ inputs.koncur_skip_maven }}
