@@ -18,7 +18,8 @@ A composite GitHub Action for running Konveyor CLI (Kantra) tests across multipl
 | `skip_maven` | Whether to setup access to the testing maven packages | No | `true` |
 | `os` | OS that the action is running on, one of `linux`, `macos`, or `windows` | Yes | - |
 | `image_pattern` | The pattern used to download images that have been built to test (e.g., `*kantra*`, `*provider*`) | No | - |
-| `ref` | The ref of koncur to use for testing (branch, tag, or commit SHA) | No | `main` |
+| `ref` | The ref used for pulling images (fallback tag) | No | `main` |
+| `koncur_ref` | The ref of koncur to use for testing (branch, tag, or commit SHA) | No | `main` |
 
 ## Outputs
 
@@ -114,7 +115,7 @@ Test with a specific Koncur version or branch:
   uses: konveyor/ci/koncur-kantra@main
   with:
     os: linux
-    ref: v1.0.0
+    koncur_ref: v1.0.0
 ```
 
 ### Complete PR Testing Workflow

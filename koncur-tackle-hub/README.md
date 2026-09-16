@@ -17,7 +17,8 @@ A composite GitHub Action for running Konveyor Hub API tests in a Kubernetes env
 |-------|-------------|----------|---------|
 | `skip_maven` | Whether to setup access to the testing maven packages | No | `true` |
 | `image_pattern` | The pattern used to download images that have been built to test (e.g., `*hub*`, `*addon*`, `*provider*`) | No | - |
-| `ref` | The ref of koncur to use for testing (branch, tag, or commit SHA) | No | `main` |
+| `ref` | The ref used for pulling images (fallback tag) | No | `main` |
+| `koncur_ref` | The ref of koncur to use for testing (branch, tag, or commit SHA) | No | `main` |
 
 ## Outputs
 
@@ -91,7 +92,7 @@ Test with a specific Koncur version:
 - name: Run Hub tests with Koncur v1.0.0
   uses: konveyor/ci/koncur-tackle-hub@main
   with:
-    ref: v1.0.0
+    koncur_ref: v1.0.0
 ```
 
 ### Complete PR Testing Workflow
