@@ -197,7 +197,11 @@ runs:
       uses: Eun/http-server-action@v1
       with:
         directory: koncur/local-maven-resources
-        port: 8085
+        # 8082 is inside the operator's egress NetworkPolicy allow-list (added in
+        # konveyor/operator#624 alongside the Nexus default 8081), so the analyzer
+        # addon can reach this repo from the isolated namespace. 8081 is already
+        # taken by the hub API port-forward on the runner host, so 8082 is used here.
+        port: 8082
 
     - name: Get Kind network gateway
       if: ${{ !fromJSON(inputs.skip_maven) }}
@@ -214,8 +218,8 @@ runs:
       uses: s4u/maven-settings-action@v4.0.0
       with:
         githubServer: false
-        repositories: '[{"id": "tackle-testapp-public", "name": "Local tackle-testapp repo", "url": "http://${{ env.KIND_GATEWAY }}:8085"}]'
-        mirrors: '[{"id": "maven-default-http-blocker", "name": "disable http block", "mirrorOf": "tackle-testapp-public", "url": "http://${{ env.KIND_GATEWAY }}:8085", "blocked": false}]'
+        repositories: '[{"id": "tackle-testapp-public", "name": "Local tackle-testapp repo", "url": "http://${{ env.KIND_GATEWAY }}:8082"}]'
+        mirrors: '[{"id": "maven-default-http-blocker", "name": "disable http block", "mirrorOf": "tackle-testapp-public", "url": "http://${{ env.KIND_GATEWAY }}:8082", "blocked": false}]'
         path: "${{ runner.temp }}/settings.xml"
 
     - name: Create Hub target config
