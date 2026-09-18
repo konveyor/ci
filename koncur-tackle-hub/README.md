@@ -211,12 +211,12 @@ Waits for Hub to be fully operational:
 ### 6. Maven Configuration (Optional)
 
 If `skip_maven: false`:
-1. Starts HTTP server on port 8085 serving `local-maven-resources/`
+1. Starts HTTP server on port 8082 serving `local-maven-resources/`
 2. Detects Kind cluster gateway IP from inside the container:
    ```bash
    docker exec koncur-test-control-plane ip route | grep default | awk '{print $3}'
    ```
-3. Creates Maven settings file with custom repository pointing to gateway:8085
+3. Creates Maven settings file with custom repository pointing to gateway:8082
 4. Creates Hub config at `.koncur/config/target-tackle-hub.yaml`:
    ```yaml
    type: tackle-hub
@@ -299,7 +299,7 @@ curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/applications
 
 **Solution**: 
 1. Ensure `skip_maven: false` is set
-2. Verify the HTTP server is running on port 8085
+2. Verify the HTTP server is running on port 8082
 3. Check that `KIND_GATEWAY` is correctly detected:
    ```bash
    docker exec koncur-test-control-plane ip route
@@ -377,7 +377,7 @@ See [shared_tests/README.md](../shared_tests/README.md) for more information on 
 │  │  Port-forward: svc/tackle-hub 8081:8080            │ │
 │  └────────────────────────────────────────────────────┘ │
 │                                                          │
-│  HTTP Server: :8085 (Maven local resources)             │
+│  HTTP Server: :8082 (Maven local resources)             │
 │  Koncur CLI → http://localhost:8081 (Basic admin/admin) │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
