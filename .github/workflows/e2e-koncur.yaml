@@ -1,0 +1,133 @@
+name: Run Koncur e2e (hub + kantra)
+
+# Combined koncur e2e workflow. It builds the images for the repo under test
+# once and then runs the tackle-hub and/or kantra koncur suites against them.
+# This consolidates e2e-hub-koncur.yaml and e2e-kantra-koncur.yaml: callers pick
+# the suites they want via run_hub_tests / run_kantra_tests (both default true).
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        description: |
+          The repo to simulate the testing from. Defaults to the calling repo.
+        required: false
+        type: string
+      ref:
+        description: |
+          The ref (branch or PR) that all konveyor related repos should be pulled
+          from. For example "release-0.8" for a nightly build of that branch.
+        required: false
+        type: string
+        default: main
+      run_hub_tests:
+        description: Run the tackle-hub koncur tests.
+        required: false
+        type: boolean
+        default: true
+      run_kantra_tests:
+        description: Run the kantra koncur tests.
+        required: false
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: |
+          The repo to simulate the testing from. Defaults to the calling repo.
+        required: false
+        type: string
+      ref:
+        description: |
+          The ref (branch or PR) that all konveyor related repos should be pulled
+          from. For example "release-0.8" for a nightly build of that branch.
+        required: false
+        type: string
+        default: main
+      run_hub_tests:
+        description: Run the tackle-hub koncur tests.
+        required: false
+        type: boolean
+        default: true
+      run_kantra_tests:
+        description: Run the kantra koncur tests.
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+
+  build-images:
+    uses: ./.github/workflows/e2e-image-build.yaml
+    with:
+      repo: ${{ inputs.repo || github.repository }}
+      ref: ${{ inputs.ref || github.ref }}
+    secrets: inherit
+
+  extract-koncur-ref:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run_hub_tests || inputs.run_kantra_tests }}
+    outputs:
+      koncur_ref: ${{ steps.extract.outputs.koncur_ref }}
+    steps:
+      - name: Extract koncur pull request number from PR description
+        id: extract
+        env:
+          body: ${{ github.event.pull_request.body }}
+          DEFAULT_REF: ${{ github.base_ref || inputs.ref || github.ref_name || 'main' }}
+        run: |
+          PULL_REQUEST_NUMBER=$(echo "$body" | grep -oP '[Kk]oncur [Pp][Rr]:\s*\K\d+' || true)
+          if [ -z "$PULL_REQUEST_NUMBER" ]; then
+            KONCUR_REF="$DEFAULT_REF"
+          else
+            KONCUR_REF="refs/pull/${PULL_REQUEST_NUMBER}/merge"
+          fi
+
+          echo "koncur_ref=${KONCUR_REF}" >>"$GITHUB_OUTPUT"
+          echo "Using KONCUR_REF \`${KONCUR_REF}\`" >>"$GITHUB_STEP_SUMMARY"
+
+  run-hub-koncur:
+    if: ${{ inputs.run_hub_tests }}
+    runs-on: ubuntu-latest
+    needs:
+    - build-images
+    - extract-koncur-ref
+    steps:
+      - name: Run Koncur Testing
+        uses: konveyor/ci/koncur-tackle-hub@main
+        with:
+          image_pattern: |
+            *{tackle2-*,provider}--${{ github.run_id }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name }}
+          koncur_ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
+
+  run-kantra-koncur:
+    if: ${{ inputs.run_kantra_tests }}
+    needs:
+    - build-images
+    - extract-koncur-ref
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - os: "linux"
+            runner: "ubuntu-24.04-arm"
+          - os: "macos"
+            runner: "macos-26-large"
+          - os: "windows"
+            runner: "windows-latest"
+        exclude:
+          - os:
+              os: "macos"
+              runner: "macos-26-large"
+    runs-on: ${{ matrix.os.runner }}
+    steps:
+      - name: Run Koncur Testing
+        id: koncur-test
+        uses: konveyor/ci/koncur-kantra@main
+        with:
+          os: ${{ matrix.os.os }}
+          image_pattern: |
+            *{kantra,provider}--${{ github.run_id }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name }}
+          koncur_ref: ${{ needs.extract-koncur-ref.outputs.koncur_ref }}
