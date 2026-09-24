@@ -6,20 +6,11 @@ name: Run Koncur e2e (hub + kantra)
 # the suites they want via run_hub_tests / run_kantra_tests (both default true).
 
 on:
+  # For workflow_call the repo and ref are taken from the github context
+  # (github.repository / github.ref) — no need to pass them in. Only the test
+  # toggles are exposed to callers.
   workflow_call:
     inputs:
-      repo:
-        description: |
-          The repo to simulate the testing from. Defaults to the calling repo.
-        required: false
-        type: string
-      ref:
-        description: |
-          The ref (branch or PR) that all konveyor related repos should be pulled
-          from. For example "release-0.8" for a nightly build of that branch.
-        required: false
-        type: string
-        default: main
       run_hub_tests:
         description: Run the tackle-hub koncur tests.
         required: false
