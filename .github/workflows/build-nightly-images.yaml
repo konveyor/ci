@@ -68,12 +68,12 @@ jobs:
           ref: ${{ steps.determine_ref.outputs.ref }}
 
       # Ruleset overlay: when the repo under test is the rulesets repo declared on
-      # this image (matrix.image.ruleset_repo), we build the image (tackle2-hub)
-      # from its base ref but overlay the rules from the rulesets PR onto the seed
-      # that gets baked into the image. The seed is checked out inside the image
-      # build context so the Dockerfile's default SEED_ROOT picks up the patched
-      # resources instead of cloning a fresh seed. See the ruleset_repo handling in
-      # scripts/parse_matrix_config.py.
+      # this image (matrix.image.ruleset_repo), we build the image (tackle2-hub or
+      # kantra) from its base ref but overlay the rules from the rulesets PR onto
+      # the seed that gets baked into the image. The seed is checked out inside the
+      # image build context so the Dockerfile's default SEED_ROOT picks up the
+      # patched resources instead of cloning a fresh seed. See the ruleset_repo
+      # handling in scripts/parse_matrix_config.py.
       - name: Checkout tackle2-seed for ruleset overlay
         if: ${{ matrix.image.ruleset_repo == inputs.tested_repo }}
         uses: actions/checkout@v5

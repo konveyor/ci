@@ -108,17 +108,24 @@ config:
           - "github.com/konveyor/tackle2-seed@BRANCH_PLACEHOLDER"
 
   # Rulesets are data, not a buildable image: they get patched into the
-  # tackle2-seed resources that are baked into the tackle2-hub image. This entry
-  # rebuilds tackle2-hub with the ruleset changes from a konveyor/rulesets PR
-  # overlaid onto the seed, so e2e tests exercise the rules under test.
+  # tackle2-seed resources that are baked into the tackle2-hub and kantra images.
+  # These entries rebuild those images with the ruleset changes from a
+  # konveyor/rulesets PR overlaid onto the seed, so the hub and kantra e2e tests
+  # exercise the rules under test (mirroring konveyor/rulesets' own global-ci).
   #
-  # It is included ONLY when konveyor/rulesets is the repo under test (the
+  # They are included ONLY when konveyor/rulesets is the repo under test (the
   # ruleset_repo field is matched in scripts/parse_matrix_config.py), which keeps
-  # it out of nightly and non-rulesets runs and avoids a duplicate hub build. The
+  # them out of nightly and non-rulesets runs and avoids duplicate builds. The
   # actual seed patching happens in the overlay steps of
   # .github/workflows/build-nightly-images.yaml.
   - repo: "konveyor/tackle2-hub"
     image: "quay.io/konveyor/tackle2-hub"
+    dockerfile_path: "Dockerfile"
+    context_path: "."
+    ruleset_repo: "konveyor/rulesets"
+
+  - repo: "konveyor/kantra"
+    image: "quay.io/konveyor/kantra"
     dockerfile_path: "Dockerfile"
     context_path: "."
     ruleset_repo: "konveyor/rulesets"
