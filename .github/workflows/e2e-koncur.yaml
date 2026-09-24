@@ -11,6 +11,20 @@ on:
   # toggles are exposed to callers.
   workflow_call:
     inputs:
+      ci_repo:
+        description: |
+          Repository holding the matrix configuration/parser. Defaults to
+          'konveyor/ci'. Set to a fork to test matrix-config changes together
+          with ci_ref.
+        required: false
+        type: string
+        default: 'konveyor/ci'
+      ci_ref:
+        description: |
+          Ref of the ci repo (see ci_repo) to use for matrix configuration.
+        required: false
+        type: string
+        default: 'main'
       run_hub_tests:
         description: Run the tackle-hub koncur tests.
         required: false
@@ -35,6 +49,20 @@ on:
         required: false
         type: string
         default: main
+      ci_repo:
+        description: |
+          Repository holding the matrix configuration/parser. Defaults to
+          'konveyor/ci'. Set to a fork to test matrix-config changes together
+          with ci_ref.
+        required: false
+        type: string
+        default: 'konveyor/ci'
+      ci_ref:
+        description: |
+          Ref of the ci repo (see ci_repo) to use for matrix configuration.
+        required: false
+        type: string
+        default: 'main'
       run_hub_tests:
         description: Run the tackle-hub koncur tests.
         required: false
@@ -53,6 +81,8 @@ jobs:
     with:
       repo: ${{ inputs.repo || github.repository }}
       ref: ${{ inputs.ref || github.ref }}
+      ci_repo: ${{ inputs.ci_repo || 'konveyor/ci' }}
+      ci_ref: ${{ inputs.ci_ref || 'main' }}
     secrets: inherit
 
   extract-koncur-ref:
