@@ -281,21 +281,20 @@ def organize_by_levels(
         """
         # Check if this job matches the filter.
         #
-        # A job is built when the whole matrix is requested (repo_filter is None),
-        # when its own "repo" is the repo under test, or when its "ruleset_repo" is
-        # the repo under test. The ruleset_repo case is an ADDITIONAL trigger, not a
-        # replacement: some images (tackle2-hub, kantra) bake in rules from a
-        # rulesets repo via the tackle2-seed, so a rulesets PR must rebuild them with
-        # the PR's rules overlaid onto the seed (see the overlay steps in
-        # .github/workflows/build-nightly-images.yaml). Because these images are
-        # existing dependent_jobs, matching via ruleset_repo lets them build at their
-        # normal dependency level with their real base_image (e.g. static-report),
-        # exactly like testing tackle2-hub directly, and without duplicate entries.
-        matches = (
-            repo_filter is None
-            or job.get("repo") == repo_filter
-            or job.get("ruleset_repo") == repo_filter
-        )
+        # Ruleset-overlay jobs (jobs carrying a "ruleset_repo") are special: they
+        # build an image (e.g. tackle2-hub) whose "repo" is NOT the repo under
+        # test. Instead they overlay rules from a rulesets repo PR onto the seed
+        # baked into that image. Such a job must therefore be included ONLY when
+        # its ruleset_repo is exactly the repo under test. That keeps it out of
+        # nightly runs (repo_filter is None) and out of unrelated repo runs, and
+        # prevents it from being pulled in transitively by a matched parent, which
+        # would otherwise cause a duplicate hub build.
+        ruleset_repo = job.get("ruleset_repo")
+        if ruleset_repo is not None:
+            matches = repo_filter == ruleset_repo
+            include = matches
+        else:
+            matches = repo_filter is None or job.get("repo") == repo_filter
 
         # Check if any dependent jobs match (look ahead)
         has_matching_descendant = False
