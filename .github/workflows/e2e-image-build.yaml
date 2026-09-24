@@ -22,16 +22,24 @@ on:
           The tag to use for the images
         required: false
         type: string
+      ci_repo:
+        description: |
+          The repository holding the matrix configuration and parser to use.
+          Defaults to 'konveyor/ci'. Set this to a fork (e.g. 'me/ci') to test
+          matrix-config changes from a fork branch together with ci_ref.
+        required: false
+        type: string
+        default: 'konveyor/ci'
       ci_ref:
         description: |
-          The ref of the konveyor/ci repo to use for matrix configuration.
+          The ref of the ci repo (see ci_repo) to use for matrix configuration.
           Defaults to 'main' if not specified.
         required: false
         type: string
         default: 'main'
       matrix_config:
         description: |
-          Path (relative to the konveyor/ci repo root) of the matrix config
+          Path (relative to the ci repo root) of the matrix config
           file to build images from. Leave empty to auto-detect from the
           tested branch: a 'release-X.Y' branch uses
           'matrix-config-X.Y.yaml' when it exists, otherwise the
@@ -58,16 +66,24 @@ on:
           The tag to use for the images
         required: false
         type: string
+      ci_repo:
+        description: |
+          The repository holding the matrix configuration and parser to use.
+          Defaults to 'konveyor/ci'. Set this to a fork (e.g. 'me/ci') to test
+          matrix-config changes from a fork branch together with ci_ref.
+        required: false
+        type: string
+        default: 'konveyor/ci'
       ci_ref:
         description: |
-          The ref of the konveyor/ci repo to use for matrix configuration.
+          The ref of the ci repo (see ci_repo) to use for matrix configuration.
           Defaults to 'main' if not specified.
         required: false
         type: string
         default: 'main'
       matrix_config:
         description: |
-          Path (relative to the konveyor/ci repo root) of the matrix config
+          Path (relative to the ci repo root) of the matrix config
           file to build images from. Leave empty to auto-detect from the
           tested branch.
         required: false
@@ -86,7 +102,7 @@ jobs:
       - name: Checkout ci repo
         uses: actions/checkout@v5
         with:
-          repository: konveyor/ci
+          repository: ${{ inputs.ci_repo }}
           ref: ${{ inputs.ci_ref }}
 
       - name: Setup Python
