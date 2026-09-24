@@ -94,10 +94,14 @@ runs:
       if: ${{ inputs.tackle_hub != '' }}
       shell: bash
       run: |
-        echo "HUB=${{ inputs.tackle_hub }}" >> $GITHUB_ENV
-        echo "Pulling and loading custom Hub image: ${{ inputs.tackle_hub }}"
-        docker pull "${{ inputs.tackle_hub }}" || true
-        kind load docker-image "${{ inputs.tackle_hub }}" --name koncur-test || true
+        echo "Attempting to use custom Hub image: ${{ inputs.tackle_hub }}"
+        if docker pull "${{ inputs.tackle_hub }}" && \
+           kind load docker-image "${{ inputs.tackle_hub }}" --name koncur-test; then
+          echo "HUB=${{ inputs.tackle_hub }}" >> $GITHUB_ENV
+          echo "Custom Hub image successfully loaded into Kind"
+        else
+          echo "Warning: Failed to pull/load custom Hub image, falling back to default"
+        fi
 
     - name: Install Tackle Hub with auth
       shell: bash
