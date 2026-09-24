@@ -19,6 +19,11 @@ inputs:
     required: false
     type: string
     default: main
+  tackle_hub:
+    description: Custom Hub image URI to use (overrides the default image)
+    required: false
+    type: string
+    default: ""
 
 runs:
   using: "composite"
@@ -84,6 +89,19 @@ runs:
       shell: bash
       run: |
         ${GITHUB_ACTION_PATH}/check_images.sh
+
+    - name: Override Hub image if provided
+      if: ${{ inputs.tackle_hub != '' }}
+      shell: bash
+      run: |
+        echo "Attempting to use custom Hub image: ${{ inputs.tackle_hub }}"
+        if docker pull "${{ inputs.tackle_hub }}" && \
+           kind load docker-image "${{ inputs.tackle_hub }}" --name koncur-test; then
+          echo "HUB=${{ inputs.tackle_hub }}" >> $GITHUB_ENV
+          echo "Custom Hub image successfully loaded into Kind"
+        else
+          echo "Warning: Failed to pull/load custom Hub image, falling back to default"
+        fi
 
     - name: Install Tackle Hub with auth
       shell: bash
