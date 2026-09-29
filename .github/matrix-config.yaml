@@ -50,6 +50,7 @@ config:
         image: "quay.io/konveyor/kantra"
         dockerfile_path: "Dockerfile"
         context_path: "."
+        args: "RULESETS_REF=BRANCH_PLACEHOLDER"
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
           - "github.com/konveyor/analyzer-lsp/external-providers/java-external-provider@BRANCH_PLACEHOLDER"
