@@ -5,8 +5,8 @@
 Branch | Koncur | CLI
 --|--|--
 **main** | [![Run Koncur nightly](https://github.com/konveyor/ci/actions/workflows/nightly-koncur.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur.yaml) | [![Nightly CLI test for main](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml/badge.svg)](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml)
+**release-0.11** | [![Run Koncur nightly (Release 0.11)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.11.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.11.yaml) |
 **release-0.10** | [![Run Koncur nightly (Release 0.10)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.10.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.10.yaml) |
-**release-0.9** | [![Run Koncur nightly (Release 0.9)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.9.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.9.yaml) |
 
 ## Repositories status
 
@@ -32,12 +32,12 @@ These workflows are the new workflows and related files:
 > This is the source of truth for how repositories are tied together, what images need to be based on others.
 > Also contains the information for how to build the image for the given repository.
 
-* [nightly-koncur](.github/workflows/nightly-koncur.yaml) and [nightly-koncur-0.9.yaml](.github/workflows/nightly-koncur-0.9.yaml)
-> These are used for the nightly tests, running as a cron.
+* [nightly-koncur](.github/workflows/nightly-koncur.yaml)
+> This is used for the nightly tests, running as a cron.
 > This is responsible for using the [script](scripts/parse_matrix_config.py) to determine the dependency levels for image builds.
 > It will then run for all valid levels with the `build-nightly-images.yaml` workflow.
 > Once all the images are built, it will run koncur for hub and kantra.
-> Note: the release-0.9 version hardcodes the branch and reuses `nightly-koncur.yaml`.
+> Note: per-release versions (e.g. `nightly-koncur-0.10.yaml`) hardcode the branch and reuse `nightly-koncur.yaml`.
 
 * [build-nightly-images.yaml](.github/workflows/build-nightly-images.yaml)
 > This is used for building the images for a given level of image builds. It creates a matrix of the build images, that will:
