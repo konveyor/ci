@@ -5,6 +5,7 @@
 Branch | Koncur | CLI
 --|--|--
 **main** | [![Run Koncur nightly](https://github.com/konveyor/ci/actions/workflows/nightly-koncur.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur.yaml) | [![Nightly CLI test for main](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml/badge.svg)](https://github.com/konveyor-ecosystem/kantra-cli-tests/actions/workflows/nightly-main-latest.yaml)
+**release-0.11** | [![Run Koncur nightly (Release 0.11)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.11.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.11.yaml) |
 **release-0.10** | [![Run Koncur nightly (Release 0.10)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.10.yaml/badge.svg?branch=main)](https://github.com/konveyor/ci/actions/workflows/nightly-koncur-0.10.yaml) |
 
 ## Repositories status
