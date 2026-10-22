@@ -131,7 +131,9 @@ runs:
     - name: Start port-forward
       shell: bash
       working-directory: koncur
-      run: make hub-forward &
+      run: |
+        make hub-forward &
+        sleep 10
 
     - name: Wait for Hub API (auth)
       shell: bash
@@ -186,18 +188,36 @@ runs:
           # main and other branches use built-in auth with admin:admin
           ready=false
           for i in $(seq 1 30); do
-            if curl -sf -u admin:admin http://localhost:8081/applications > /dev/null 2>&1; then
-              echo "Hub API is ready"
+            # Record the HTTP status and curl's exit code separately so a failure
+            # is diagnosable:
+            #   hub_code  200 = ready, 401 = auth rejected (admin not seeded),
+            #             000 = no response (port-forward down / refused / timeout)
+            #   rc        curl exit code; non-zero = the transfer itself failed
+            # --max-time keeps a hung connection from stalling the loop.
+            # `|| rc=$?` captures curl's failure without tripping `set -e` (the
+            # step runs with -e), so a not-yet-ready hub just retries. curl writes
+            # 000 itself on no response, so a real status (e.g. 401) isn't masked.
+            rc=0
+            hub_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+              -u admin:admin http://localhost:8081/applications 2>/dev/null) || rc=$?
+            [ -z "$hub_code" ] && hub_code="000"
+            # Require a clean transfer AND 200 — a partial/timed-out 200 is not ready.
+            if [ "$rc" -eq 0 ] && [ "$hub_code" = "200" ]; then
+              echo "Hub API is ready (HTTP 200)"
               ready=true
               break
             fi
-            echo "Waiting for Hub API... attempt $i"
+            echo "Waiting for Hub API... attempt $i (HTTP $hub_code, curl rc $rc)"
             sleep 5
           done
           if [ "$ready" != "true" ]; then
-            echo "Hub API never became ready"
+            echo "Hub API never became ready (last HTTP $hub_code, curl rc $rc)"
+            echo "=== Pods ==="
             kubectl get pods -n konveyor-tackle || true
+            echo "=== tackle-hub logs ==="
             kubectl logs -n konveyor-tackle -l app.kubernetes.io/name=tackle-hub --tail=50 || true
+            echo "=== Verbose request (port-forward / auth detail) ==="
+            curl -sv --max-time 10 -u admin:admin http://localhost:8081/applications 2>&1 | head -40 || true
             exit 1
           fi
           echo "HUB_PASSWORD=admin" >> $GITHUB_ENV
