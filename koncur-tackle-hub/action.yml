@@ -131,7 +131,9 @@ runs:
     - name: Start port-forward
       shell: bash
       working-directory: koncur
-      run: make hub-forward &
+      run: |
+        make hub-forward &
+        sleep 10
 
     - name: Wait for Hub API (auth)
       shell: bash
