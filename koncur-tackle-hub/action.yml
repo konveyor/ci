@@ -185,24 +185,28 @@ runs:
         else
           # main and other branches use built-in auth with admin:admin
           ready=false
-          hub_code="000"
           for i in $(seq 1 30); do
-            # Capture the HTTP status so a flake is diagnosable: 000 = no response
-            # (port-forward down / connection refused / timeout), 401 = auth
-            # rejected (admin user not seeded), 200 = ready. --max-time stops a
-            # hung connection from blocking the whole loop.
+            # Record the HTTP status and curl's exit code separately so a failure
+            # is diagnosable:
+            #   hub_code  200 = ready, 401 = auth rejected (admin not seeded),
+            #             000 = no response (port-forward down / refused / timeout)
+            #   rc        curl exit code; non-zero = the transfer itself failed
+            # --max-time keeps a hung connection from stalling the loop.
             hub_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-              -u admin:admin http://localhost:8081/applications 2>/dev/null) || hub_code="000"
-            if [ "$hub_code" = "200" ]; then
+              -u admin:admin http://localhost:8081/applications 2>/dev/null)
+            rc=$?
+            [ -z "$hub_code" ] && hub_code="000"
+            # Require a clean transfer AND 200 — a partial/timed-out 200 is not ready.
+            if [ "$rc" -eq 0 ] && [ "$hub_code" = "200" ]; then
               echo "Hub API is ready (HTTP 200)"
               ready=true
               break
             fi
-            echo "Waiting for Hub API... attempt $i (HTTP $hub_code)"
+            echo "Waiting for Hub API... attempt $i (HTTP $hub_code, curl rc $rc)"
             sleep 5
           done
           if [ "$ready" != "true" ]; then
-            echo "Hub API never became ready (last HTTP $hub_code)"
+            echo "Hub API never became ready (last HTTP $hub_code, curl rc $rc)"
             echo "=== Pods ==="
             kubectl get pods -n konveyor-tackle || true
             echo "=== tackle-hub logs ==="
