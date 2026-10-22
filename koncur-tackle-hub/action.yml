@@ -192,9 +192,12 @@ runs:
             #             000 = no response (port-forward down / refused / timeout)
             #   rc        curl exit code; non-zero = the transfer itself failed
             # --max-time keeps a hung connection from stalling the loop.
+            # `|| rc=$?` captures curl's failure without tripping `set -e` (the
+            # step runs with -e), so a not-yet-ready hub just retries. curl writes
+            # 000 itself on no response, so a real status (e.g. 401) isn't masked.
+            rc=0
             hub_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-              -u admin:admin http://localhost:8081/applications 2>/dev/null)
-            rc=$?
+              -u admin:admin http://localhost:8081/applications 2>/dev/null) || rc=$?
             [ -z "$hub_code" ] && hub_code="000"
             # Require a clean transfer AND 200 — a partial/timed-out 200 is not ready.
             if [ "$rc" -eq 0 ] && [ "$hub_code" = "200" ]; then
