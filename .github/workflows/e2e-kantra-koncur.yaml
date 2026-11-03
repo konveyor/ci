@@ -36,7 +36,11 @@ jobs:
         id: extract
         env:
           body: ${{ github.event.pull_request.body }}
-          DEFAULT_REF: ${{ github.base_ref || inputs.ref || github.ref_name || 'main' }}
+          # For koncur's own PR gate, test the PR under review. Use the PR's
+          # refs/pull/<n>/merge ref; on push, use the pushed branch.
+          # For cross-repo callers (e.g. kantra), keep using the base branch,
+          # which exists in koncur.
+          DEFAULT_REF: ${{ github.repository == 'konveyor/koncur' && (github.event.pull_request.number && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.ref_name) || github.base_ref || inputs.ref || github.ref_name || 'main' }}
         run: |
           PULL_REQUEST_NUMBER=$(echo "$body" | grep -oP '[Kk]oncur [Pp][Rr]:\s*\K\d+' || true)
           if [ -z "$PULL_REQUEST_NUMBER" ]; then
